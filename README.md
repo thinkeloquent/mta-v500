@@ -539,3 +539,7 @@ For issues and questions:
 - Check existing documentation in `docs/`
 - Review `.claude/agents/` for subsystem details
 - Check Makefile help: `make help`
+
+  "optionalDependencies": {
+  "@rollup/rollup-darwin-arm64": "^4.53.1"
+  }

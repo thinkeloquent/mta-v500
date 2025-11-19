@@ -21,8 +21,9 @@ COPY packages-mjs/ ./packages-mjs/
 # Copy Fastify apps
 COPY fastify-apps/ ./fastify-apps/
 
-# Install dependencies with npm
-RUN npm install
+# Install dependencies with npm (omit optional platform-specific packages)
+# RUN npm install --omit=optional
+RUN npm ci
 
 # Generate types from common schemas
 RUN chmod +x ./common/scripts/generate-types.sh && \
