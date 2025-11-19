@@ -5,8 +5,12 @@
 # This single stage handles multiple frontends (fastapi-apps/*/frontend)
 FROM node:22-slim AS frontend-builder
 
+
 # Upgrade npm to latest for lockfile compatibility
 RUN npm install -g npm@latest
+RUN npm install -g typescript@latest
+RUN npm install -g rollup@latest
+RUN npm install -g tsup@latest
 
 # ARG for backend API domain (used by Vite during build)
 ARG VITE_BACKEND_API_DOMAIN=""
