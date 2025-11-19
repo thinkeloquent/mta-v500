@@ -21,9 +21,11 @@ COPY packages-mjs/ ./packages-mjs/
 # Copy Fastify apps
 COPY fastify-apps/ ./fastify-apps/
 
-# Install dependencies with npm (omit optional platform-specific packages)
-# RUN npm install --omit=optional
-RUN npm ci
+# Copy utility scripts
+COPY .bin/ ./.bin/
+
+# Clean incomplete platform-specific entries from lockfile, then install
+RUN node .bin/npm-pkg-lock-platform.js && npm ci
 
 # Generate types from common schemas
 RUN chmod +x ./common/scripts/generate-types.sh && \

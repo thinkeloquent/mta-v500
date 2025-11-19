@@ -19,9 +19,8 @@ WORKDIR /frontend
 # Copy entire project for building inside Docker
 COPY . .
 
-# Install dependencies with npm (omit optional platform-specific packages)
-RUN rm -rf node_modules fastapi-apps/*/frontend/node_modules
-RUN npm ci
+# Clean incomplete platform-specific entries from lockfile, then install
+RUN node .bin/npm-pkg-lock-platform.js && npm ci
 
 # Build all workspaces in dependency order (packages-mjs + frontends)
 # Explicit dependency order to prevent build failures
