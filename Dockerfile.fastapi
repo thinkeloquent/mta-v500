@@ -20,7 +20,7 @@ WORKDIR /frontend
 COPY . .
 
 # Clean incomplete platform-specific entries from lockfile, then install
-RUN node .bin/npm-pkg-lock-platform.js && npm ci
+RUN node .bin/npm-pkg-lock-platform.mjs && npm ci
 
 # Build all workspaces in dependency order (packages-mjs + frontends)
 # Explicit dependency order to prevent build failures

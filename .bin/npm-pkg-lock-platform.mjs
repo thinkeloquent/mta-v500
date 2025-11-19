@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * npm-pkg-lock-platform.js
+ * npm-pkg-lock-platform.mjs
  *
  * Removes incomplete platform-specific optional dependency entries from package-lock.json.
  *
@@ -16,13 +16,17 @@
  * correct platform-specific package during installation.
  *
  * Usage:
- *   node .bin/npm-pkg-lock-platform.js [path/to/package-lock.json]
+ *   node .bin/npm-pkg-lock-platform.mjs [path/to/package-lock.json]
  *
  * Default path: ./package-lock.json
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Get lockfile path from args or use default
 const lockfilePath = process.argv[2] || 'package-lock.json';

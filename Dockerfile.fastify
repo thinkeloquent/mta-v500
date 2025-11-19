@@ -25,7 +25,7 @@ COPY fastify-apps/ ./fastify-apps/
 COPY .bin/ ./.bin/
 
 # Clean incomplete platform-specific entries from lockfile, then install
-RUN node .bin/npm-pkg-lock-platform.js && npm ci
+RUN node .bin/npm-pkg-lock-platform.mjs && npm ci
 
 # Generate types from common schemas
 RUN chmod +x ./common/scripts/generate-types.sh && \
