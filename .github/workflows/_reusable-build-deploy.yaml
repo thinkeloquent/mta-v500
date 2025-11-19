@@ -1,0 +1,109 @@
+name: Reusable Build & Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      run_build:
+        description: 'Run build stage'
+        required: false
+        type: boolean
+        default: true
+      run_deploy:
+        description: 'Run deployment stage'
+        required: false
+        type: boolean
+        default: false
+      project_matrix:
+        description: 'JSON string containing project matrix configuration'
+        required: true
+        type: string
+    secrets:
+      ORCHESTRATION_REGISTRY_USER:
+        required: false
+      ORCHESTRATION_REGISTRY_PASSWORD:
+        required: false
+      REPORTING_REGISTRY_USER:
+        required: false
+      REPORTING_REGISTRY_PASSWORD:
+        required: false
+    outputs:
+      build_status:
+        description: 'Overall build status'
+        value: ${{ jobs.build_and_deploy.result }}
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(inputs.project_matrix) }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      PROJECT_NAME: ${{ matrix.project.projectName }}
+      SERVER_NAME: ${{ matrix.project.serverName }}
+      DEPLOY_ENVIRONMENT: ${{ matrix.project.deploy_to_environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate project workspace
+        id: workspace
+        run: |
+          if [ ! -d "${{ matrix.project.working_directory }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping ${{ matrix.project.projectName }} because ${{ matrix.project.working_directory }} does not exist"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.workspace.outputs.skip == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute Docker build args
+        if: steps.workspace.outputs.skip == 'false'
+        id: buildargs
+        run: |
+          python3 <<'PYSCRIPT' >> "$GITHUB_OUTPUT"
+          import json
+          args = json.loads('''${{ toJson(matrix.project.DockerBuildArg) }}''')
+          print('args=' + ' '.join(f"--build-arg {item}" for item in args))
+          PYSCRIPT
+
+      - name: Log in to registry
+        if: steps.workspace.outputs.skip == 'false' && inputs.run_build == true
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets[matrix.project.secretsUser] }}
+          password: ${{ secrets[matrix.project.secretsPass] }}
+
+      - name: Build and push image
+        if: steps.workspace.outputs.skip == 'false' && inputs.run_build == true
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ matrix.project.projectName }}
+        run: |
+          BUILD_ARGS="${{ steps.buildargs.outputs.args }}"
+          IMAGE_TAG="$IMAGE_NAME:${{ github.sha }}"
+          DOCKERFILE="${{ matrix.project.dockerFile }}"
+          CONTEXT="${{ matrix.project.working_directory }}"
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "::warning::Dockerfile $DOCKERFILE not found; skipping image build"
+            exit 0
+          fi
+          docker build $BUILD_ARGS -f "$DOCKERFILE" -t "$IMAGE_TAG" "$CONTEXT"
+          docker push "$IMAGE_TAG"
+          echo "image=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to ${{ matrix.project.deploy_to_environment }}
+        if: steps.workspace.outputs.skip == 'false' && inputs.run_deploy == true
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository }}/${{ matrix.project.projectName }}:${{ github.sha }}
+        run: |
+          echo "Deploying $IMAGE_NAME to $DEPLOY_ENVIRONMENT via $SERVER_NAME"
+          # Insert deployment CLI here (kubectl/helm/ssh/etc.)

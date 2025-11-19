@@ -1,0 +1,32 @@
+{
+  "name": "ask-ai",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastapi-apps/app-ask-ai/frontend/src",
+  "projectType": "application",
+  "tags": ["type:frontend", "scope:fastapi"],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "npm run build",
+        "cwd": "fastapi-apps/app-ask-ai/frontend"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastapi-apps/app-ask-ai/frontend"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run preview",
+        "cwd": "fastapi-apps/app-ask-ai/frontend"
+      }
+    }
+  }
+}

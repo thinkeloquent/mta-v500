@@ -1,0 +1,114 @@
+.typing-indicator {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  max-width: 85%;
+}
+
+.typing-indicator-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.typing-indicator-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.typing-indicator-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.typing-indicator-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+}
+
+.typing-indicator-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 16px;
+  border: 1px solid transparent;
+  width: fit-content;
+}
+
+.typing-indicator-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6366f1;
+  animation: typing-bounce 1.4s ease-in-out infinite;
+}
+
+.typing-indicator-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+/* Compact variant */
+.typing-indicator--compact .typing-indicator-avatar {
+  width: 24px;
+  height: 24px;
+}
+
+.typing-indicator--compact .typing-indicator-avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.typing-indicator--compact .typing-indicator-dots {
+  padding: 0.5rem 0.75rem;
+}
+
+.typing-indicator--compact .typing-indicator-text {
+  font-size: 0.7rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .typing-indicator-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .typing-indicator-avatar svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .typing-indicator-dots {
+    padding: 0.65rem 0.85rem;
+  }
+}

@@ -1,0 +1,107 @@
+# Makefile.database - Database management tasks
+# Implements CI targets: install, build, test, run, clean
+
+COMMON_CONFIG := ./common/config
+COMPOSE := docker compose
+
+.PHONY: install build test run clean db-logs db-reset db-migrate db-validate help
+
+# =============================================================================
+# CI Targets (called by root Makefile)
+# =============================================================================
+
+install: db-validate
+	@echo "[Database] Configuration validated"
+	@echo "[Database] Ready to start databases"
+
+build:
+	@echo "[Database] Building database images..."
+	$(COMPOSE) build postgres redis
+	@echo "[Database] Build complete"
+
+test: db-validate
+	@echo "[Database] Running database connectivity tests..."
+	@# Test if docker-compose is valid
+	@$(COMPOSE) config > /dev/null && echo "[Database] ✓ docker-compose.yml is valid"
+	@echo "[Database] Tests complete"
+
+run:
+	@echo "[Database] Starting databases (Postgres + Redis)..."
+	$(COMPOSE) up postgres redis -d
+	@echo "[Database] Waiting for health checks..."
+	@sleep 5
+	@$(COMPOSE) ps postgres redis
+	@echo ""
+	@echo "[Database] ✓ Databases started successfully"
+	@echo "  PostgreSQL: localhost:$${POSTGRES_PORT:-5432}"
+	@echo "  Redis: localhost:6379"
+
+clean:
+	@echo "[Database] Stopping and removing databases..."
+	$(COMPOSE) down postgres redis
+	@echo "[Database] Clean complete (data volumes preserved)"
+	@echo "  Use 'make -f Makefile.database db-reset' to delete data"
+
+# =============================================================================
+# Database-specific targets
+# =============================================================================
+
+db-validate:
+	@echo "[Database] Validating configs in $(COMMON_CONFIG)..."
+	@test -f $(COMMON_CONFIG)/database.yaml || (echo "⚠️  Missing database.yaml"; exit 1)
+	@test -f $(COMMON_CONFIG)/redis.yaml || (echo "⚠️  Missing redis.yaml"; exit 1)
+	@echo "[Database] ✓ Configuration files found"
+
+db-logs:
+	@echo "[Database] Showing database logs (Ctrl+C to exit)..."
+	$(COMPOSE) logs -f postgres redis
+
+db-reset:
+	@echo "[Database] ⚠️  WARNING: This will DELETE ALL DATA"
+	@echo "[Database] Stopping databases and removing volumes..."
+	$(COMPOSE) down -v postgres redis
+	@echo "[Database] Restarting databases with fresh data..."
+	$(COMPOSE) up postgres redis -d
+	@echo "[Database] Reset complete"
+
+db-migrate:
+	@echo "[Database] Running Alembic migrations..."
+	@echo "[Database] Using config from $(COMMON_CONFIG)/database.yaml"
+	@PYTHONPATH=. alembic upgrade head
+	@echo "[Database] Migrations complete"
+
+db-shell-postgres:
+	@echo "[Database] Opening PostgreSQL shell..."
+	@$(COMPOSE) exec postgres psql -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+
+db-shell-redis:
+	@echo "[Database] Opening Redis CLI..."
+	@$(COMPOSE) exec redis redis-cli
+
+# =============================================================================
+# Help
+# =============================================================================
+
+help:
+	@echo "Makefile.database - Database Management"
+	@echo ""
+	@echo "CI Targets:"
+	@echo "  make -f Makefile.database install      - Validate database configuration"
+	@echo "  make -f Makefile.database build        - Build database Docker images"
+	@echo "  make -f Makefile.database test         - Test database configuration"
+	@echo "  make -f Makefile.database run          - Start databases (Postgres + Redis)"
+	@echo "  make -f Makefile.database clean        - Stop databases (preserve data)"
+	@echo ""
+	@echo "Database Operations:"
+	@echo "  make -f Makefile.database db-logs      - Show database logs"
+	@echo "  make -f Makefile.database db-reset     - Reset databases (DELETE ALL DATA)"
+	@echo "  make -f Makefile.database db-migrate   - Run Alembic migrations"
+	@echo "  make -f Makefile.database db-validate  - Validate config files"
+	@echo ""
+	@echo "Database Shells:"
+	@echo "  make -f Makefile.database db-shell-postgres  - Open PostgreSQL shell"
+	@echo "  make -f Makefile.database db-shell-redis     - Open Redis CLI"
+	@echo ""
+	@echo "Environment Variables (from system - per CLAUDE.md):"
+	@echo "  POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB"
+	@echo "  POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA"

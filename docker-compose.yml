@@ -1,0 +1,66 @@
+# docker-compose.yml - Database services only
+# FastAPI and Fastify apps run separately (not in docker-compose)
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+      target: postgres
+    container_name: mta-postgres
+    environment:
+      # Use system environment variables (per user's CLAUDE.md)
+      # Never use .env files - always use process.env[`POSTGRES_*`]
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-localhost}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-public}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./common/config:/etc/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mta-network
+    restart: unless-stopped
+
+  redis:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+      target: redis
+    container_name: mta-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./common/config:/etc/app/config:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - mta-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: mta-postgres-data
+    driver: local
+
+  redis_data:
+    name: mta-redis-data
+    driver: local
+
+networks:
+  mta-network:
+    name: mta-network
+    driver: bridge

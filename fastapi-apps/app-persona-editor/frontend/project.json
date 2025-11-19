@@ -1,0 +1,32 @@
+{
+  "name": "persona-architect-frontend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastapi-apps/app-persona-editor/frontend/src",
+  "projectType": "application",
+  "tags": ["type:frontend", "scope:fastapi"],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "npm run build",
+        "cwd": "fastapi-apps/app-persona-editor/frontend"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastapi-apps/app-persona-editor/frontend"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run preview",
+        "cwd": "fastapi-apps/app-persona-editor/frontend"
+      }
+    }
+  }
+}

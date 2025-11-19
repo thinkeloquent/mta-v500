@@ -1,0 +1,229 @@
+# ============================================================================
+# Stage 1: Frontend Builder with pnpm Workspaces
+# ============================================================================
+# Build all frontends using pnpm workspaces monorepo pattern
+# This single stage handles multiple frontends (fastapi-apps/*/frontend)
+FROM node:22-slim AS frontend-builder
+
+# Install pnpm globally
+RUN npm install --global corepack@latest
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# ARG for backend API domain (used by Vite during build)
+ARG VITE_BACKEND_API_DOMAIN=""
+
+# ENV to pass ARG to build process
+ENV VITE_BACKEND_API_DOMAIN=${VITE_BACKEND_API_DOMAIN}
+
+WORKDIR /frontend
+
+# Copy entire project for building inside Docker
+COPY . .
+
+# Install dependencies with pnpm
+RUN rm -rf node_modules fastapi-apps/*/frontend/node_modules && \
+  pnpm install --frozen-lockfile
+
+# Build all workspaces in dependency order (packages-mjs + frontends)
+# Explicit dependency order to prevent build failures
+
+# Tier 1: Base packages (no @thinkeloquent dependencies)
+RUN pnpm --filter=@mta/config-loader run build && \
+  pnpm --filter=@thinkeloquent/core-exceptions run build && \
+  pnpm --filter=@thinkeloquent/core-decorator-registry run build && \
+  pnpm --filter=@thinkeloquent/core-no-cache run build && \
+  pnpm --filter=@thinkeloquent/core-plugin-logger run build && \
+  pnpm --filter=@thinkeloquent/core-route-logger run build && \
+  pnpm --filter=@thinkeloquent/core-prisma-orchestrator run build && \
+  pnpm --filter=@mta/ui-components run build && \
+  pnpm --filter=@mta/utils run build && \
+  pnpm --filter=@thinkeloquent/vault-secret-hydrator run build
+
+# Tier 2: Packages that depend on tier 1
+RUN pnpm --filter=@thinkeloquent/core-configure run build && \
+  pnpm --filter=@thinkeloquent/core-prisma-utils run build && \
+  pnpm --filter=@thinkeloquent/core-spa-app run build && \
+  pnpm --filter=@thinkeloquent/core-static-app run build
+
+# Tier 3: Packages that depend on tier 1 & 2
+RUN pnpm --filter=@thinkeloquent/skeleton run build
+
+# Build all frontend workspaces (fastapi-apps/*/frontend)
+RUN pnpm run -r build
+
+# Organize built files into static directory structure
+# Pattern: fastapi-apps/app-{name}/frontend/dist → /static/app/{name}/frontend/dist
+# Strips 'app-' prefix from directory names to match FastAPI static server expectations
+RUN mkdir -p /static/app && \
+  echo "Organizing built frontend files..." && \
+  for frontend_dir in /frontend/fastapi-apps/*/frontend; do \
+  if [ -d "$frontend_dir/dist" ]; then \
+  app_name=$(basename $(dirname "$frontend_dir")); \
+  # Strip 'app-' prefix if present (app-persona-editor → persona-editor)
+  clean_name=$(echo "$app_name" | sed 's/^app-//'); \
+  dest_dir="/static/app/$clean_name/frontend"; \
+  echo "Copying $app_name → $clean_name: $frontend_dir/dist → $dest_dir/dist"; \
+  mkdir -p "$dest_dir"; \
+  cp -r "$frontend_dir/dist" "$dest_dir/"; \
+  else \
+  app_name=$(basename $(dirname "$frontend_dir")); \
+  echo "Warning: No dist folder found for $app_name"; \
+  fi; \
+  done && \
+  echo "Static files organized successfully!"
+
+# Verify the build output
+RUN echo "Build verification:" && \
+  find /static -type f -name "index.html" && \
+  echo "Total files:" && \
+  find /static -type f | wc -l && \
+  echo "Total size:" && \
+  du -sh /static
+
+# ============================================================================
+# Stage 2: Python Runtime (default target)
+# ============================================================================
+# Use Python 3.11 slim image
+FROM python:3.11
+
+# ARG for vault secrets file path
+ARG VAULT_SECRET_FILE="/opt/secrets/vault_secrets"
+
+# ARG for environment secrets file path
+ARG ENV_SECRET_FILE="/etc/secrets/MTA_DEV"
+
+# ARG for environment secrets loading mode (namespace or global)
+ARG ENV_SECRET_MODE="namespace"
+
+# ARG for build identification (format: value1//value2//value3)
+ARG BUILD_ID="v.0.0.1"
+
+# ARG for PyPI registry URL (can be overridden with --build-arg)
+ARG PYPI_REGISTRY_URL=https://pypi.org/simple
+
+# ARG for PyPI host (can be overridden with --build-arg)
+ARG PYPI_HOST=pypi.org
+
+# ARG for pip behavior settings (can be overridden with --build-arg)
+ARG PIP_DISABLE_PIP_VERSION_CHECK=1
+ARG PIP_VERBOSE=0
+ARG PIP_NO_CACHE_DIR=1
+
+# ARG for certificate path (can be overridden with --build-arg)
+ARG CA_CERT_PATH=/etc/ssl/certs/ca-certificates.crt
+
+# ARG for proxy settings (optional, only used if provided)
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG NO_PROXY=""
+
+# ARG for MTA environment (development/production)
+ARG MTA_ENV="production"
+
+# Set working directory
+WORKDIR /app
+
+#(ca-certificates.crt settings can be added here if needed)>
+
+# -----------------------------------
+# ENV variable for build identification
+ENV BUILD_ID=${BUILD_ID}
+ENV VAULT_SECRET_FILE=${VAULT_SECRET_FILE}
+
+# -----------------------------------
+# ENV variables for environment secrets
+ENV ENV_SECRET_FILE=${ENV_SECRET_FILE}
+ENV ENV_SECRET_MODE=${ENV_SECRET_MODE}
+
+# -----------------------------------
+# ENV variable for MTA environment
+ENV MTA_ENV=${MTA_ENV}
+ENV DOCS_AUTH_USERNAME=""
+ENV DOCS_AUTH_PASSWORD=""
+ENV DEBUG_AUTH_USERNAME=""
+ENV DEBUG_AUTH_PASSWORD=""
+# -----------------------------------
+# ENV variables to optimize pip behavior
+ENV PYTHON_REGISTRY_URL=${PYPI_REGISTRY_URL}
+
+# -----------------------------------
+# ENV variables to optimize proxy behavior (only set if ARG provided)
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+
+# -----------------------------------
+# ENV variables to optimize pip behavior
+ENV PIP_DISABLE_PIP_VERSION_CHECK=${PIP_DISABLE_PIP_VERSION_CHECK}
+ENV PIP_VERBOSE=${PIP_VERBOSE}
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
+ENV PIP_INDEX_URL=${PYPI_REGISTRY_URL}
+ENV PIP_TRUSTED_HOST=${PYPI_HOST}
+ENV PIP_CERT=${CA_CERT_PATH}
+
+# -----------------------------------
+# ENV variables to optimize Poetry behavior
+ENV POETRY_PYPI_URL=${PYPI_REGISTRY_URL}
+ENV POETRY_NO_INTERACTION=1
+ENV POETRY_VIRTUALENVS_IN_PROJECT=false
+ENV POETRY_INSTALLER_PARALLEL=false
+ENV POETRY_VIRTUALENVS_CREATE=false
+
+# -----------------------------------
+# check connectivity to PyPI
+RUN curl -v ${PYPI_REGISTRY_URL}
+
+COPY pyproject.toml poetry.lock* ./
+COPY . .
+
+
+# Copy built static files and common directory from frontend-builder
+# Static files are already organized in /static with snake_case naming preserved
+COPY --from=frontend-builder /static ./static
+COPY --from=frontend-builder /frontend/common ./common
+
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+RUN /venv/bin/pip install --upgrade pip setuptools wheel || true
+
+RUN /venv/bin/pip config set global.index ${PYPI_REGISTRY_URL}
+RUN /venv/bin/pip config set global.index-url ${PYPI_REGISTRY_URL}
+RUN /venv/bin/pip config set global.trusted-host ${PYPI_HOST}
+RUN if [ -n "${CA_CERT_PATH}" ]; then /venv/bin/pip config set global.cert ${CA_CERT_PATH}; fi
+
+RUN /venv/bin/pip install --no-cache-dir --index-url ${PYPI_REGISTRY_URL} poetry
+
+RUN /venv/bin/poetry config virtualenvs.in-project false
+RUN /venv/bin/poetry config installer.parallel false
+RUN /venv/bin/poetry config virtualenvs.create false
+RUN if [ -n "${CA_CERT_PATH}" ]; then /venv/bin/poetry config certificates.PyPI.cert ${CA_CERT_PATH}; fi
+
+#(additional poetry proxy settings can be added here if needed)>
+
+RUN /venv/bin/poetry config --list
+RUN /venv/bin/poetry add requests -vvv
+
+# Install dependencies (production only)
+# Note: Using --no-root because pyproject.toml has packages = []
+# This is a monorepo where the actual apps are in fastapi-apps/*
+RUN /venv/bin/poetry install --no-interaction --no-ansi --no-root --only main
+
+#>-----------------------------------
+# poetry export --without-hashes --without dev -f requirements.txt -o requirements.txt
+
+# Expose port
+EXPOSE 8080
+
+# Create symlink for static files so they're accessible from app directory
+# Static files are at /app/static, but after changing WORKDIR, app looks at /app/fastapi-apps/app/static
+# Remove existing directory first (from COPY . .) then create symlink
+RUN rm -rf /app/fastapi-apps/app/static && ln -sf /app/static /app/fastapi-apps/app/static
+
+# Change to app directory where main.py exists
+WORKDIR /app/fastapi-apps/app
+
+# Run with hot-reload enabled for development
+# For production, remove --reload flag
+# Note: Uses main:app because we're now in the app directory
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

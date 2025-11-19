@@ -1,0 +1,200 @@
+.file-attachment {
+  display: inline-block;
+  margin: 0.25rem;
+}
+
+.file-attachment-preview {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.file-attachment-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-attachment-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 150ms ease;
+  backdrop-filter: blur(4px);
+}
+
+.file-attachment-preview:hover .file-attachment-remove {
+  opacity: 1;
+}
+
+.file-attachment-remove:hover {
+  background: rgba(239, 68, 68, 0.9);
+  transform: scale(1.1);
+}
+
+.file-attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 12px;
+  min-width: 240px;
+  max-width: 100%;
+  transition: all 150ms ease;
+}
+
+.file-attachment-card:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.file-attachment-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+}
+
+.file-attachment-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.file-attachment-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0b111b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-attachment-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-attachment-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.file-attachment-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.file-attachment-action {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(99, 102, 241, 0.08);
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.file-attachment-action:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  transform: translateY(-1px);
+}
+
+/* Compact variant */
+.file-attachment--compact .file-attachment-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 10px;
+}
+
+.file-attachment--compact .file-attachment-card {
+  padding: 0.6rem 0.85rem;
+  min-width: 200px;
+}
+
+.file-attachment--compact .file-attachment-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.file-attachment--compact .file-icon {
+  font-size: 1.25rem;
+}
+
+.file-attachment--compact .file-attachment-name {
+  font-size: 0.8125rem;
+}
+
+.file-attachment--compact .file-attachment-size {
+  font-size: 0.7rem;
+}
+
+.file-attachment--compact .file-attachment-action {
+  width: 28px;
+  height: 28px;
+}
+
+.file-attachment--compact .file-attachment-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .file-attachment-preview {
+    width: 140px;
+    height: 140px;
+  }
+
+  .file-attachment-card {
+    min-width: 200px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .file-attachment-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .file-icon {
+    font-size: 1.25rem;
+  }
+
+  .file-attachment-name {
+    font-size: 0.8125rem;
+  }
+}

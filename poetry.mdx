@@ -1,0 +1,66 @@
+```sh
+python -m requests <URL>
+```
+
+```sh
+python - <<'PY'
+import requests
+r = requests.get("<URL>")
+print(r.status_code, r.text[:200])
+PY
+```
+
+```sh
+python - <<'PY'
+import certifi, shutil, pathlib
+src = pathlib.Path("<PATH>.pem")
+dst = pathlib.Path(certifi.where())
+backup = dst.with_suffix(".bak")
+shutil.copy(dst, backup)
+dst.write_text(dst.read_text() + "\n" + src.read_text())
+print("✅ Merged corporate CA into:", dst)
+print("📦 Backup saved at:", backup)
+PY
+
+poetry lock -vvv
+```
+
+```sh
+curl -v -x <PROXY_URL> \
+--cacert <PATH>.pem \
+<URL>
+```
+
+```sh
+curl -v --cacert <PATH>.pem \
+<URL>
+```
+
+```sh
+curl -v <URL>
+```
+
+```sh
+curl --cacert <PATH>.pem <URL>
+```
+
+```sh
+poetry config certificates.<NS>.cert <PATH>.pem
+poetry lock
+poetry lock --no-interaction -vvv
+poetry config --list | grep certificates
+```
+
+```sh
+openssl x509 -in <PATH>.crt \
+  -inform DER -out <PATH>.pem \
+  -outform PEM
+```
+
+This uses poetry install --without dev to skip development dependencies.
+
+The poetry.Makefile has three install options:
+
+1. install - Install all dependencies (dev + production)
+2. install-no-dev - Install only production dependencies (excludes dev)
+3. install-no-root - Install dependencies without installing the project itself

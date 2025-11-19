@@ -1,0 +1,31 @@
+{
+  "name": "ai-sdk-examples",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/ai-sdk-examples/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:fastify"],
+  "targets": {
+    "lint": {},
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:dev",
+        "cwd": "fastify-apps/ai-sdk-examples"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:start",
+        "cwd": "fastify-apps/ai-sdk-examples"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "fastify-apps/ai-sdk-examples"
+      }
+    }
+  }
+}

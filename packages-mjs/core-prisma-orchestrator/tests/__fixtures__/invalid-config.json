@@ -1,0 +1,9 @@
+{
+  "apps": [
+    {
+      "name": "auth",
+      "schemaPath": "apps/auth/prisma/schema.prisma"
+    }
+  ],
+  "strategy": "invalid-strategy"
+}

@@ -1,0 +1,68 @@
+tests
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Frontend (keep frontend dist folders for static artifact builds)
+# Note: dist/ above excludes Python dist, but we need app/*/frontend/dist
+!app/*/frontend/dist
+
+# Poetry
+# poetry.lock is needed for reproducible builds
+!poetry.lock
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+# Include README.md for Poetry packaging
+!README.md
+!lib
+docs/
+
+# Docker
+Dockerfile
+Dockerfile.*
+.dockerignore
+
+# Environment
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,47 @@
+# Dockerfile.database - PostgreSQL and Redis services
+# Multi-stage build with separate targets for each database
+
+# =============================================================================
+# PostgreSQL Stage
+# =============================================================================
+FROM postgres:16 AS postgres
+
+# Use system environment variables (per user's CLAUDE.md instructions)
+# Never use .env files - always use process.env[`POSTGRES_*`]
+ENV POSTGRES_USER=${POSTGRES_USER}
+ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+ENV POSTGRES_DB=${POSTGRES_DB}
+
+# Copy database configuration from common
+COPY ./common/config/database.yaml /etc/postgresql/database.yaml
+
+# Copy initialization scripts directory (may be empty)
+COPY ./db-init /docker-entrypoint-initdb.d/
+
+# Expose PostgreSQL port
+EXPOSE 5432
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 \
+  CMD pg_isready -U ${POSTGRES_USER} || exit 1
+
+# =============================================================================
+# Redis Stage
+# =============================================================================
+FROM redis:7-alpine AS redis
+
+# Copy Redis configuration from common
+COPY ./common/config/redis.yaml /usr/local/etc/redis/redis.conf
+
+# Create data directory
+RUN mkdir -p /data && chown redis:redis /data
+
+# Expose Redis port
+EXPOSE 6379
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD redis-cli ping || exit 1
+
+# Start Redis with config
+CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]
