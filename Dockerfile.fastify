@@ -4,14 +4,10 @@
 # Stage 1: Builder
 FROM node:22-slim AS builder
 
-# Install pnpm globally
-RUN npm install --global corepack@latest
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-
 WORKDIR /app
 
 # Copy package files and workspace config
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* tsconfig*.json ./
+COPY package.json package-lock.json* tsconfig*.json ./
 
 # Copy common configs & schemas
 COPY common/ ./common/
@@ -22,8 +18,8 @@ COPY packages-mjs/ ./packages-mjs/
 # Copy Fastify apps
 COPY fastify-apps/ ./fastify-apps/
 
-# Install dependencies with pnpm
-RUN pnpm install --frozen-lockfile
+# Install dependencies with npm
+RUN npm ci
 
 # Generate types from common schemas
 RUN chmod +x ./common/scripts/generate-types.sh && \
@@ -31,32 +27,32 @@ RUN chmod +x ./common/scripts/generate-types.sh && \
 
 # Build packages in explicit dependency order
 # Tier 1: Base packages (no @thinkeloquent dependencies)
-RUN pnpm --filter=@mta/config-loader run build && \
-    pnpm --filter=@thinkeloquent/core-exceptions run build && \
-    pnpm --filter=@thinkeloquent/core-decorator-registry run build && \
-    pnpm --filter=@thinkeloquent/core-no-cache run build && \
-    pnpm --filter=@thinkeloquent/core-plugin-logger run build && \
-    pnpm --filter=@thinkeloquent/core-route-logger run build && \
-    pnpm --filter=@thinkeloquent/core-prisma-orchestrator run build && \
-    pnpm --filter=@mta/ui-components run build && \
-    pnpm --filter=@mta/utils run build && \
-    pnpm --filter=@thinkeloquent/vault-secret-hydrator run build
+RUN npm run --workspace=@mta/config-loader build && \
+    npm run --workspace=@thinkeloquent/core-exceptions build && \
+    npm run --workspace=@thinkeloquent/core-decorator-registry build && \
+    npm run --workspace=@thinkeloquent/core-no-cache build && \
+    npm run --workspace=@thinkeloquent/core-plugin-logger build && \
+    npm run --workspace=@thinkeloquent/core-route-logger build && \
+    npm run --workspace=@thinkeloquent/core-prisma-orchestrator build && \
+    npm run --workspace=@mta/ui-components build && \
+    npm run --workspace=@mta/utils build && \
+    npm run --workspace=@thinkeloquent/vault-secret-hydrator build
 
 # Tier 2: Packages that depend on tier 1
-RUN pnpm --filter=@thinkeloquent/core-configure run build && \
-    pnpm --filter=@thinkeloquent/core-prisma-utils run build && \
-    pnpm --filter=@thinkeloquent/core-spa-app run build && \
-    pnpm --filter=@thinkeloquent/core-static-app run build
+RUN npm run --workspace=@thinkeloquent/core-configure build && \
+    npm run --workspace=@thinkeloquent/core-prisma-utils build && \
+    npm run --workspace=@thinkeloquent/core-spa-app build && \
+    npm run --workspace=@thinkeloquent/core-static-app build
 
 # Tier 3: Packages that depend on tier 1 & 2
-RUN pnpm --filter=@thinkeloquent/skeleton run build
+RUN npm run --workspace=@thinkeloquent/skeleton build
 
 # Build all frontends (fastapi-apps/*/frontend workspaces)
 RUN for frontend in /app/fastapi-apps/*/frontend; do \
     if [ -d "$frontend" ] && [ -f "$frontend/package.json" ]; then \
     app_name=$(basename $(dirname "$frontend")); \
     echo "Building frontend for $app_name..."; \
-    (cd "$frontend" && pnpm run build) || echo "No build script for $app_name frontend"; \
+    (cd "$frontend" && npm run build) || echo "No build script for $app_name frontend"; \
     fi; \
     done
 

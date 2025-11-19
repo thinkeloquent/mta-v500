@@ -1,13 +1,9 @@
 # ============================================================================
-# Stage 1: Frontend Builder with pnpm Workspaces
+# Stage 1: Frontend Builder with npm Workspaces
 # ============================================================================
-# Build all frontends using pnpm workspaces monorepo pattern
+# Build all frontends using npm workspaces monorepo pattern
 # This single stage handles multiple frontends (fastapi-apps/*/frontend)
 FROM node:22-slim AS frontend-builder
-
-# Install pnpm globally
-RUN npm install --global corepack@latest
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 # ARG for backend API domain (used by Vite during build)
 ARG VITE_BACKEND_API_DOMAIN=""
@@ -20,36 +16,36 @@ WORKDIR /frontend
 # Copy entire project for building inside Docker
 COPY . .
 
-# Install dependencies with pnpm
+# Install dependencies with npm
 RUN rm -rf node_modules fastapi-apps/*/frontend/node_modules && \
-  pnpm install --frozen-lockfile
+  npm ci
 
 # Build all workspaces in dependency order (packages-mjs + frontends)
 # Explicit dependency order to prevent build failures
 
 # Tier 1: Base packages (no @thinkeloquent dependencies)
-RUN pnpm --filter=@mta/config-loader run build && \
-  pnpm --filter=@thinkeloquent/core-exceptions run build && \
-  pnpm --filter=@thinkeloquent/core-decorator-registry run build && \
-  pnpm --filter=@thinkeloquent/core-no-cache run build && \
-  pnpm --filter=@thinkeloquent/core-plugin-logger run build && \
-  pnpm --filter=@thinkeloquent/core-route-logger run build && \
-  pnpm --filter=@thinkeloquent/core-prisma-orchestrator run build && \
-  pnpm --filter=@mta/ui-components run build && \
-  pnpm --filter=@mta/utils run build && \
-  pnpm --filter=@thinkeloquent/vault-secret-hydrator run build
+RUN npm run --workspace=@mta/config-loader build && \
+  npm run --workspace=@thinkeloquent/core-exceptions build && \
+  npm run --workspace=@thinkeloquent/core-decorator-registry build && \
+  npm run --workspace=@thinkeloquent/core-no-cache build && \
+  npm run --workspace=@thinkeloquent/core-plugin-logger build && \
+  npm run --workspace=@thinkeloquent/core-route-logger build && \
+  npm run --workspace=@thinkeloquent/core-prisma-orchestrator build && \
+  npm run --workspace=@mta/ui-components build && \
+  npm run --workspace=@mta/utils build && \
+  npm run --workspace=@thinkeloquent/vault-secret-hydrator build
 
 # Tier 2: Packages that depend on tier 1
-RUN pnpm --filter=@thinkeloquent/core-configure run build && \
-  pnpm --filter=@thinkeloquent/core-prisma-utils run build && \
-  pnpm --filter=@thinkeloquent/core-spa-app run build && \
-  pnpm --filter=@thinkeloquent/core-static-app run build
+RUN npm run --workspace=@thinkeloquent/core-configure build && \
+  npm run --workspace=@thinkeloquent/core-prisma-utils build && \
+  npm run --workspace=@thinkeloquent/core-spa-app build && \
+  npm run --workspace=@thinkeloquent/core-static-app build
 
 # Tier 3: Packages that depend on tier 1 & 2
-RUN pnpm --filter=@thinkeloquent/skeleton run build
+RUN npm run --workspace=@thinkeloquent/skeleton build
 
 # Build all frontend workspaces (fastapi-apps/*/frontend)
-RUN pnpm run -r build
+RUN npm run --workspaces --if-present build
 
 # Organize built files into static directory structure
 # Pattern: fastapi-apps/app-{name}/frontend/dist → /static/app/{name}/frontend/dist
