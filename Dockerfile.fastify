@@ -4,7 +4,7 @@
 # Stage 1: Builder
 FROM node:22-slim AS builder
 
-# Upgrade npm to latest for lockfile compatibility
+# Upgrade npm to latest for lockfile compatibility 00
 RUN npm install -g npm@latest
 RUN npm install -g typescript@latest
 RUN npm install -g rollup@latest

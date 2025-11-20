@@ -1,6 +1,6 @@
 {
   "name": "mta-v500",
-  "version": "5.0.0",
+  "version": "0.0.0",
   "description": "Multi-language monorepo (Python + JavaScript) using Nx",
   "private": true,
   "type": "module",
