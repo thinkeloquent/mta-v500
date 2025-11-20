@@ -2,6 +2,7 @@ packages-mjs/skeleton/examples
 packages-mjs/core-static-app/*.md
 SPEC
 __PLAY__
+k8s
 
 *.md
 *.lock

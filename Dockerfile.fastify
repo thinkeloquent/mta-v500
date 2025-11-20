@@ -26,6 +26,7 @@ COPY fastify-apps/ ./fastify-apps/
 
 # Copy utility scripts
 COPY .bin/ ./.bin/
+COPY scripts/ ./scripts/
 
 # Clean incomplete platform-specific entries from lockfile, then install
 RUN node .bin/npm-pkg-lock-platform.mjs && npm install
