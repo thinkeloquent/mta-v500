@@ -11,6 +11,7 @@
     "fastify-apps/*/frontend"
   ],
   "scripts": {
+    "postinstall": "node scripts/ensure-rollup-binary.mjs",
     "build": "nx run-many -t build",
     "dev": "nx run-many -t dev",
     "test": "nx run-many -t test",
@@ -67,12 +68,16 @@
   "overrides": {
     "browserslist": "^4.27.0",
     "vitest": "3.2.4",
-    "@vitest/coverage-v8": "3.2.4"
+    "@vitest/coverage-v8": "3.2.4",
+    "@ai-sdk/openai-compatible": {
+      "zod": "$zod"
+    },
+    "ai": {
+      "zod": "$zod"
+    }
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "1.2.12",
-    "@ai-sdk/google": "1.2.22",
-    "@ai-sdk/openai": "1.3.24",
+    "@ai-sdk/openai-compatible": "0.2.14",
     "@anthropic-ai/sdk": "0.67.1",
     "@fastify/basic-auth": "6.2.0",
     "@fastify/compress": "8.3.0",
@@ -119,6 +124,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "7.9.6",
+    "rollup": "^4.53.2",
     "tailwind-merge": "2.6.0",
     "zod": "4.1.12"
   },
@@ -128,5 +134,8 @@
     "prisma": "6.19.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.53.1"
   }
 }
