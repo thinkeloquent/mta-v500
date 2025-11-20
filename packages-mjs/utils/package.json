@@ -6,10 +6,14 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
+    "build": "tsc",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.json --watch"
   },
-  "keywords": ["mta", "utils", "utilities"],
+  "keywords": [
+    "mta",
+    "utils",
+    "utilities"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {

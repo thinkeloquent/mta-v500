@@ -1,0 +1,1 @@
+{"version":3,"file":"plugin.d.ts","sourceRoot":"","sources":["plugin.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,OAAO,KAAK,EAAuB,eAAe,EAAE,MAAM,YAAY,CAAC;;AA0PvE,wBAGG;AAGH,OAAO,QAAQ,SAAS,CAAC;IACvB,UAAU,eAAe;QACvB,eAAe,CAAC,EAAE,eAAe,CAAC;KACnC;CACF"}

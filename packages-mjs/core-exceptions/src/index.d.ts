@@ -28,35 +28,8 @@
  * }
  * ```
  */
-export { Result, Ok, Err } from './result.js';
-export {
-  BaseException,
-  ErrorCategory,
-  ValidationError,
-  InvalidInputError,
-  SchemaValidationError,
-  InvalidConfigurationError,
-  BusinessRuleError,
-  EntityNotFoundError,
-  EntityNotFoundError as NotFoundError, // Alias for backward compatibility
-  DuplicateEntityError,
-  UnauthorizedError,
-  ForbiddenError,
-  OperationNotAllowedError,
-  DatabaseError,
-  ConnectionError,
-  QueryError,
-  TransactionError,
-  ExternalServiceError,
-  ServiceUnavailableError,
-  ServiceTimeoutError,
-  ApiError,
-  SystemError,
-  FileSystemError,
-  PathTraversalError,
-  ConfigurationError,
-  InitializationError,
-  NotImplementedError,
-  ErrorFactory,
-} from './errors.js';
+export { ApiError, BaseException, BusinessRuleError, ConfigurationError, ConnectionError, DatabaseConfigurationError, DatabaseError, DuplicateEntityError, EntityNotFoundError, EntityNotFoundError as NotFoundError, // Alias for backward compatibility
+ErrorCategory, ErrorFactory, ExternalServiceError, FileSystemError, ForbiddenError, InitializationError, InvalidConfigurationError, InvalidInputError, NotImplementedError, OperationNotAllowedError, PathTraversalError, PortInUseError, QueryError, SchemaValidationError, ServiceTimeoutError, ServiceUnavailableError, SystemError, TransactionError, UnauthorizedError, ValidationError, } from './errors.js';
+export { Err, Ok, Result } from './result.js';
+export { err, ok } from './result-helpers.js';
 //# sourceMappingURL=index.d.ts.map

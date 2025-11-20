@@ -51,6 +51,7 @@
     "@vitest/coverage-v8": "3.2.4",
     "@vitest/ui": "3.2.4",
     "autoprefixer": "10.4.21",
+    "esbuild": "0.21.5",
     "fastify": "5.6.2",
     "nx": "22.0.3",
     "pino-pretty": "13.1.2",
@@ -69,6 +70,7 @@
     "browserslist": "^4.27.0",
     "vitest": "3.2.4",
     "@vitest/coverage-v8": "3.2.4",
+    "esbuild": "0.21.5",
     "@ai-sdk/openai-compatible": {
       "zod": "$zod"
     },
