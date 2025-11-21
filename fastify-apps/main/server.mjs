@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import basicAuth from '@fastify/basic-auth';
 import { createServer, launchServer } from '@internal/skeleton';
-import aiSdkExamplesPlugin from '../ai-sdk-examples/src/index.mjs';
+import aiSdkChatPlugin from '../ai-sdk-chat/src/index.mjs';
 import { authServiceApp } from './modules/auth-service.mjs';
 import { userServiceApp } from './modules/user-service.mjs';
 
@@ -198,17 +198,17 @@ await fastify.apps.registerAll([
     },
   },
   {
-    name: 'ai-sdk-examples',
-    plugin: aiSdkExamplesPlugin,
+    name: 'ai-sdk-chat',
+    plugin: aiSdkChatPlugin,
     options: {
-      apiPrefix: '/api/ai-sdk-examples',
-      frontendPrefix: '/apps/ai-sdk-examples',
+      apiPrefix: '/api/ai-sdk-chat',
+      frontendPrefix: '/apps/ai-sdk-chat',
       useFastifyPlugin: false, // Plugin is already wrapped
     },
     metadata: {
       version: '1.0.0',
-      description: 'AI SDK streaming examples with multi-provider support',
-      tags: ['ai', 'streaming', 'examples'],
+      description: 'AI SDK chat with multi-provider support',
+      tags: ['ai', 'streaming', 'chat'],
       dependencies: [], // No dependencies
     },
   },

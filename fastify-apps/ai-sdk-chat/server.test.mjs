@@ -14,7 +14,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import aiSdkExamplesPlugin from './src/index.mjs';
+import aiSdkChatPlugin from './src/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -131,14 +131,14 @@ fastify.addHook('onError', async (request, _reply, error) => {
 // Must match the base path configured in frontend/vite.config.ts
 await fastify.register(fastifyStatic, {
   root: join(__dirname, 'frontend', 'dist'),
-  prefix: '/static/app/ai-sdk-examples/frontend/dist/',
+  prefix: '/static/app/ai-sdk-chat/frontend/dist/',
 });
 
 fastify.log.info('✓ Static file serving registered for frontend');
 
-// Register the AI SDK examples plugin
-await fastify.register(aiSdkExamplesPlugin);
-fastify.log.info('✓ AI SDK Examples plugin registered');
+// Register the AI SDK chat plugin
+await fastify.register(aiSdkChatPlugin);
+fastify.log.info('✓ AI SDK Chat plugin registered');
 
 // Serve index.html at root path
 fastify.get('/', async (_request, reply) => {
@@ -157,7 +157,7 @@ const start = async () => {
     const host = process.env.HOST || '0.0.0.0';
     const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
 
-    fastify.log.info('🚀 Starting AI SDK Examples Server...');
+    fastify.log.info('🚀 Starting AI SDK Chat Server...');
     fastify.log.info(
       {
         port,
@@ -181,20 +181,20 @@ const start = async () => {
 
     fastify.log.info('📝 Registered API routes:');
     fastify.log.info('  Messages Array Input:');
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-protocol`);
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-text`);
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-custom`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-protocol`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-text`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-custom`);
     fastify.log.info('  Simple Prompt Input:');
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-protocol-prompt`);
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-text-prompt`);
-    fastify.log.info(`   - POST /api/ai-sdk-examples/stream-custom-prompt`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-protocol-prompt`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-text-prompt`);
+    fastify.log.info(`   - POST /api/ai-sdk-chat/stream-custom-prompt`);
 
     fastify.log.info('💡 Example curl commands:');
     fastify.log.info(
-      `   curl -X POST http://localhost:${port}/api/ai-sdk-examples/stream-protocol -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Hello!"}]}'`,
+      `   curl -X POST http://localhost:${port}/api/ai-sdk-chat/stream-protocol -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Hello!"}]}'`,
     );
     fastify.log.info(
-      `   curl -X POST http://localhost:${port}/api/ai-sdk-examples/stream-protocol-prompt -H "Content-Type: application/json" -d '{"prompt":"Invent a new holiday"}'`,
+      `   curl -X POST http://localhost:${port}/api/ai-sdk-chat/stream-protocol-prompt -H "Content-Type: application/json" -d '{"prompt":"Invent a new holiday"}'`,
     );
 
     fastify.log.info('✓ Server ready to accept connections');

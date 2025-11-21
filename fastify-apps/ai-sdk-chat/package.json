@@ -1,7 +1,7 @@
 {
-  "name": "@internal/fastify-ai-sdk-examples",
+  "name": "@internal/fastify-ai-sdk-chat",
   "version": "1.0.0",
-  "description": "AI SDK streaming examples with Fastify",
+  "description": "AI SDK chat with Fastify",
   "type": "module",
   "private": true,
   "main": "src/index.mjs",

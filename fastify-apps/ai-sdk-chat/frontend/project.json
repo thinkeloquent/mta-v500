@@ -1,7 +1,7 @@
 {
-  "name": "@internal/ai-sdk-examples-frontend",
+  "name": "@internal/ai-sdk-chat-frontend",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "fastify-apps/ai-sdk-examples/frontend/src",
+  "sourceRoot": "fastify-apps/ai-sdk-chat/frontend/src",
   "projectType": "application",
   "tags": [
     "type:frontend",
@@ -16,21 +16,21 @@
       ],
       "options": {
         "command": "npm run build",
-        "cwd": "fastify-apps/ai-sdk-examples/frontend"
+        "cwd": "fastify-apps/ai-sdk-chat/frontend"
       }
     },
     "dev": {
       "executor": "nx:run-commands",
       "options": {
         "command": "npm run dev",
-        "cwd": "fastify-apps/ai-sdk-examples/frontend"
+        "cwd": "fastify-apps/ai-sdk-chat/frontend"
       }
     },
     "preview": {
       "executor": "nx:run-commands",
       "options": {
         "command": "npm run preview",
-        "cwd": "fastify-apps/ai-sdk-examples/frontend"
+        "cwd": "fastify-apps/ai-sdk-chat/frontend"
       }
     }
   }

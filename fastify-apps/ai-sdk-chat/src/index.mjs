@@ -1,5 +1,5 @@
 /**
- * AI SDK Examples - Fastify Plugin
+ * AI SDK Chat - Fastify Plugin
  * Provides AI streaming routes for the main Fastify server
  */
 
@@ -7,47 +7,66 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyPlugin from 'fastify-plugin';
 import {
-  handleCustomDataStream,
-  handleCustomDataStreamPrompt,
-  handleDataStream,
-  handleDataStreamPrompt,
-  handleTextStream,
-  handleTextStreamPrompt,
+  createCustomDataStreamHandler,
+  createCustomDataStreamPromptHandler,
+  createDataStreamHandler,
+  createDataStreamPromptHandler,
+  createTextStreamHandler,
+  createTextStreamPromptHandler,
+  defaultGetModelForRequest,
 } from './stream-protocol.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * AI SDK Examples Plugin
+ * AI SDK Chat Plugin
  * Registers three different streaming endpoints
+ *
+ * @param {object} fastify - Fastify instance
+ * @param {object} _options - Plugin options
+ * @param {function} [_options.getModelForRequest] - Custom function to resolve AI model for a request.
+ *   If not provided, uses defaultGetModelForRequest which supports OpenAI, Google (Gemini), and Anthropic.
+ * @param {string} [_options.frontendPrefix] - URL prefix for serving frontend static files
+ * @param {string} [_options.apiPrefix] - URL prefix for API routes (currently unused, routes are hardcoded)
  */
-async function aiSdkExamplesPlugin(fastify, _options) {
-  fastify.log.info('→ Initializing AI SDK Examples plugin...');
+async function aiSdkChatPlugin(fastify, _options) {
+  fastify.log.info('→ Initializing AI SDK Chat plugin...');
+
+  // Use custom model resolver if provided, otherwise use default
+  const getModelForRequest = _options.getModelForRequest || defaultGetModelForRequest;
+
+  // Create handlers with the model resolver
+  const handleDataStream = createDataStreamHandler(getModelForRequest);
+  const handleTextStream = createTextStreamHandler(getModelForRequest);
+  const handleCustomDataStream = createCustomDataStreamHandler(getModelForRequest);
+  const handleDataStreamPrompt = createDataStreamPromptHandler(getModelForRequest);
+  const handleTextStreamPrompt = createTextStreamPromptHandler(getModelForRequest);
+  const handleCustomDataStreamPrompt = createCustomDataStreamPromptHandler(getModelForRequest);
 
   // Health check endpoint
-  fastify.get('/api/ai-sdk-examples', async (_request, _reply) => {
+  fastify.get('/api/ai-sdk-chat', async (_request, _reply) => {
     return {
       status: 'ok',
-      service: 'ai-sdk-examples',
+      service: 'ai-sdk-chat',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       endpoints: {
-        health: 'GET /api/ai-sdk-examples',
-        streamProtocol: 'POST /api/ai-sdk-examples/stream-protocol',
-        streamText: 'POST /api/ai-sdk-examples/stream-text',
-        streamCustom: 'POST /api/ai-sdk-examples/stream-custom',
-        streamProtocolPrompt: 'POST /api/ai-sdk-examples/stream-protocol-prompt',
-        streamTextPrompt: 'POST /api/ai-sdk-examples/stream-text-prompt',
-        streamCustomPrompt: 'POST /api/ai-sdk-examples/stream-custom-prompt',
+        health: 'GET /api/ai-sdk-chat',
+        streamProtocol: 'POST /api/ai-sdk-chat/stream-protocol',
+        streamText: 'POST /api/ai-sdk-chat/stream-text',
+        streamCustom: 'POST /api/ai-sdk-chat/stream-custom',
+        streamProtocolPrompt: 'POST /api/ai-sdk-chat/stream-protocol-prompt',
+        streamTextPrompt: 'POST /api/ai-sdk-chat/stream-text-prompt',
+        streamCustomPrompt: 'POST /api/ai-sdk-chat/stream-custom-prompt',
       },
     };
   });
-  fastify.log.info('  ✓ Registered route: GET /api/ai-sdk-examples (health check)');
+  fastify.log.info('  ✓ Registered route: GET /api/ai-sdk-chat (health check)');
 
   // Route 1: Full data stream with protocol headers
   fastify.post(
-    '/api/ai-sdk-examples/stream-protocol',
+    '/api/ai-sdk-chat/stream-protocol',
     {
       schema: {
         description: 'Stream AI responses using Vercel AI SDK data stream protocol',
@@ -72,11 +91,11 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleDataStream,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-protocol');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-protocol');
 
   // Route 2: Simple text stream
   fastify.post(
-    '/api/ai-sdk-examples/stream-text',
+    '/api/ai-sdk-chat/stream-text',
     {
       schema: {
         description: 'Stream AI responses as plain text',
@@ -101,11 +120,11 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleTextStream,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-text');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-text');
 
   // Route 3: Custom data stream with error handling
   fastify.post(
-    '/api/ai-sdk-examples/stream-custom',
+    '/api/ai-sdk-chat/stream-custom',
     {
       schema: {
         description: 'Stream AI responses with custom data writer and error handling',
@@ -130,11 +149,11 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleCustomDataStream,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-custom');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-custom');
 
   // Route 4: Data stream with simple prompt
   fastify.post(
-    '/api/ai-sdk-examples/stream-protocol-prompt',
+    '/api/ai-sdk-chat/stream-protocol-prompt',
     {
       schema: {
         description:
@@ -151,11 +170,11 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleDataStreamPrompt,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-protocol-prompt');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-protocol-prompt');
 
   // Route 5: Text stream with simple prompt
   fastify.post(
-    '/api/ai-sdk-examples/stream-text-prompt',
+    '/api/ai-sdk-chat/stream-text-prompt',
     {
       schema: {
         description: 'Stream AI responses as plain text with simple prompt',
@@ -171,11 +190,11 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleTextStreamPrompt,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-text-prompt');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-text-prompt');
 
   // Route 6: Custom data stream with simple prompt
   fastify.post(
-    '/api/ai-sdk-examples/stream-custom-prompt',
+    '/api/ai-sdk-chat/stream-custom-prompt',
     {
       schema: {
         description:
@@ -192,7 +211,7 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     },
     handleCustomDataStreamPrompt,
   );
-  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-examples/stream-custom-prompt');
+  fastify.log.info('  ✓ Registered route: POST /api/ai-sdk-chat/stream-custom-prompt');
 
   // Register static file serving for frontend
   if (_options.frontendPrefix) {
@@ -266,16 +285,19 @@ async function aiSdkExamplesPlugin(fastify, _options) {
     }
   }
 
-  fastify.log.info('✅ AI SDK Examples plugin successfully loaded with 6 routes');
+  fastify.log.info('✅ AI SDK Chat plugin successfully loaded with 6 routes');
   fastify.log.info('   → 3 routes with messages array input');
   fastify.log.info('   → 3 routes with simple prompt input');
 }
 
 // Export as Fastify plugin
-export default fastifyPlugin(aiSdkExamplesPlugin, {
-  name: 'ai-sdk-examples',
+export default fastifyPlugin(aiSdkChatPlugin, {
+  name: 'ai-sdk-chat',
   fastify: '5.x',
 });
 
 // Also export the plugin function for direct use
-export { aiSdkExamplesPlugin };
+export { aiSdkChatPlugin };
+
+// Re-export the default model resolver for custom implementations
+export { defaultGetModelForRequest } from './stream-protocol.mjs';

@@ -74,8 +74,8 @@
   "apps": {
     "_comment": "App-specific CORS overrides. These extend/override global settings.",
 
-    "ai-sdk-examples": {
-      "description": "AI SDK streaming examples",
+    "ai-sdk-chat": {
+      "description": "AI SDK chat",
       "origins": [],
       "additionalHeaders": ["X-AI-Model", "X-Stream-Protocol"],
       "additionalExposedHeaders": ["X-Stream-Id"]

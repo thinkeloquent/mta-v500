@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/apps/ai-sdk-examples/',
+  base: '/apps/ai-sdk-chat/',
   server: {
     host: '0.0.0.0',
     port: 5174,
