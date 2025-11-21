@@ -1,0 +1,20 @@
+{
+  "name": "@internal/create-fastapi-app",
+  "version": "1.0.0",
+  "description": "Scaffolding tool for creating new FastAPI applications",
+  "type": "module",
+  "bin": {
+    "create-fastapi-app": "./bin/create-fastapi-app.mjs"
+  },
+  "scripts": {
+    "create": "node ./bin/create-fastapi-app.mjs"
+  },
+  "keywords": [
+    "fastapi",
+    "scaffolding",
+    "template",
+    "python"
+  ],
+  "author": "",
+  "license": "MIT"
+}

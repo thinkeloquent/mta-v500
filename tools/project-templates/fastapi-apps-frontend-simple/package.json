@@ -1,0 +1,27 @@
+{
+  "name": "@internal/create-fastapi-frontend",
+  "version": "1.0.0",
+  "description": "Scaffolding tool for creating new React frontends for FastAPI applications",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "create-fastapi-frontend": "./bin/create-fastapi-frontend.mjs"
+  },
+  "files": [
+    "bin",
+    "template"
+  ],
+  "scripts": {
+    "create": "node bin/create-fastapi-frontend.mjs"
+  },
+  "keywords": [
+    "fastapi",
+    "react",
+    "vite",
+    "scaffolding",
+    "generator",
+    "template"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,93 @@
+# =============================================================================
+# Project Scaffolding Makefile
+# =============================================================================
+#
+# Usage:
+#   make -f Makefile.create-project help
+#   make -f Makefile.create-project fastapi APP=my-feature
+#   make -f Makefile.create-project fastapi-frontend APP=my-feature
+#   make -f Makefile.create-project fastify APP=my-feature
+#   make -f Makefile.create-project fastapi-full APP=my-feature
+#
+# =============================================================================
+
+.PHONY: help fastapi fastapi-frontend fastify fastapi-full
+
+# Default target
+help:
+	@echo ""
+	@echo "Project Scaffolding Commands"
+	@echo "============================"
+	@echo ""
+	@echo "Usage: make -f Makefile.create-project <target> APP=<app-name>"
+	@echo ""
+	@echo "Targets:"
+	@echo "  fastapi           Create a new FastAPI backend application"
+	@echo "  fastapi-frontend  Create a React frontend for a FastAPI app"
+	@echo "  fastify           Create a new Fastify application"
+	@echo "  fastapi-full      Create both FastAPI backend and frontend"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.create-project fastapi APP=user-service"
+	@echo "  make -f Makefile.create-project fastapi-frontend APP=user-service"
+	@echo "  make -f Makefile.create-project fastify APP=api-gateway"
+	@echo "  make -f Makefile.create-project fastapi-full APP=dashboard"
+	@echo ""
+	@echo "Notes:"
+	@echo "  - APP name should be in kebab-case (e.g., my-feature)"
+	@echo "  - 'app-' prefix is added automatically if not present"
+	@echo "  - FastAPI apps are created in fastapi-apps/<app-name>/"
+	@echo "  - Fastify apps are created in fastify-apps/<app-name>/"
+	@echo ""
+
+# Validate APP parameter
+check-app:
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: APP parameter is required"; \
+		echo "Usage: make -f Makefile.create-project <target> APP=<app-name>"; \
+		exit 1; \
+	fi
+
+# =============================================================================
+# FastAPI (Python) Targets
+# =============================================================================
+
+# Create FastAPI backend application
+fastapi: check-app
+	@echo ""
+	@echo "Creating FastAPI backend: $(APP)"
+	@echo ""
+	@node tools/project-templates/fastapi-apps-simple/bin/create-fastapi-app.mjs $(APP)
+
+# Create React frontend for FastAPI app
+fastapi-frontend: check-app
+	@echo ""
+	@echo "Creating FastAPI frontend: $(APP)"
+	@echo ""
+	@node tools/project-templates/fastapi-apps-frontend-simple/bin/create-fastapi-frontend.mjs $(APP)
+
+# Create both FastAPI backend and frontend
+fastapi-full: check-app
+	@echo ""
+	@echo "Creating FastAPI full stack: $(APP)"
+	@echo ""
+	@node tools/project-templates/fastapi-apps-simple/bin/create-fastapi-app.mjs $(APP)
+	@echo ""
+	@node tools/project-templates/fastapi-apps-frontend-simple/bin/create-fastapi-frontend.mjs $(APP)
+	@echo ""
+	@echo "Full stack created!"
+	@echo ""
+	@echo "Backend:  fastapi-apps/app-$(APP)/"
+	@echo "Frontend: fastapi-apps/app-$(APP)/frontend/"
+	@echo ""
+
+# =============================================================================
+# Fastify (Node.js) Targets
+# =============================================================================
+
+# Create Fastify application
+fastify: check-app
+	@echo ""
+	@echo "Creating Fastify app: $(APP)"
+	@echo ""
+	@node tools/project-templates/fastify-apps-simple/bin/create-fastify-app.mjs $(APP)

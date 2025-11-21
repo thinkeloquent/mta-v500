@@ -1,0 +1,44 @@
+"""
+ID generation utilities for consistent ID formats across the application.
+"""
+
+from uuid import uuid4
+from nanoid import generate as nanoid_generate
+
+
+def generate_id(prefix: str = "{{APP_NAME_SNAKE}}") -> str:
+    """
+    Generate a unique ID with a prefix.
+
+    Format: "{prefix}-{uuid}"
+
+    Args:
+        prefix: Prefix for the ID (default: app name)
+
+    Returns:
+        Prefixed ID string
+
+    Example:
+        >>> generate_id("user")
+        'user-550e8400-e29b-41d4-a716-446655440000'
+    """
+    return f"{prefix}-{uuid4()}"
+
+
+def generate_nanoid(size: int = 21) -> str:
+    """
+    Generate a short, URL-friendly unique ID.
+
+    Uses nanoid for shorter, URL-friendly IDs.
+
+    Args:
+        size: Length of the ID (default: 21)
+
+    Returns:
+        Nanoid string
+
+    Example:
+        >>> generate_nanoid()
+        'V1StGXR8_Z5jdHi6B-myT'
+    """
+    return nanoid_generate(size=size)
