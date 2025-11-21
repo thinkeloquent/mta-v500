@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-exceptions
+ * @module @internal/core-exceptions
  * @description Result<T,E> pattern and custom exception classes for consistent error handling
  *
  * Features:
@@ -11,7 +11,7 @@
  *
  * @example
  * ```typescript
- * import { Result, Ok, Err, ValidationError } from '@thinkeloquent/core-exceptions';
+ * import { Result, Ok, Err, ValidationError } from '@internal/core-exceptions';
  *
  * function divide(a: number, b: number): Result<number, ValidationError> {
  *   if (b === 0) {

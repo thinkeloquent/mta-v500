@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-plugin-logger
+ * @module @internal/core-plugin-logger
  * Fastify plugin for logging all registered plugins
  */
 

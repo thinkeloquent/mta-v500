@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/vault-secret-hydrator",
+  "name": "@internal/vault-secret-hydrator",
   "version": "0.1.2",
   "description": "TypeScript library for parsing Vault secrets with file-backed secret support",
   "license": "MIT",

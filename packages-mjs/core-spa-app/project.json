@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-spa-app",
+  "name": "@internal/core-spa-app",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-spa-app/src",
   "projectType": "library",

@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-configure
+ * @module @internal/core-configure
  * @description Entity configuration management with deep merging, validation, and entity definitions
  *
  * Features:
@@ -12,7 +12,7 @@
  *
  * @example
  * ```typescript
- * import { EntityConfigurationManager, ConfigSource } from '@thinkeloquent/core-configure';
+ * import { EntityConfigurationManager, ConfigSource } from '@internal/core-configure';
  *
  * const manager = new EntityConfigurationManager({
  *   defaultMergeStrategy: MergeStrategy.MERGE,

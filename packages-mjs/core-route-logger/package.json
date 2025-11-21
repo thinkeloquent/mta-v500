@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-route-logger",
+  "name": "@internal/core-route-logger",
   "version": "1.1.4",
   "description": "Fastify plugin for logging all registered routes to console, file, and/or structured JSON",
   "license": "MIT",

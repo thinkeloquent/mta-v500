@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-exceptions",
+  "name": "@internal/core-exceptions",
   "version": "2.0.4",
   "description": "Result<T,E> pattern and custom exception classes for consistent error handling",
   "license": "MIT",

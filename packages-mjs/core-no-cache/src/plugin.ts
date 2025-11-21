@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-no-cache
+ * @module @internal/core-no-cache
  * Fastify plugin for setting no-cache headers on all responses
  */
 

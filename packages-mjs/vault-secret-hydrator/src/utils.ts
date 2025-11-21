@@ -1,6 +1,6 @@
 /**
  * @file Utility functions for vault secret parser
- * @module @thinkeloquent/vault-secret-hydrator/utils
+ * @module @internal/vault-secret-hydrator/utils
  */
 
 import { Base64DecodingError } from './errors.js';

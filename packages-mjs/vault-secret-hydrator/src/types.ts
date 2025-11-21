@@ -1,6 +1,6 @@
 /**
  * @file Type definitions for vault secret parser
- * @module @thinkeloquent/vault-secret-hydrator/types
+ * @module @internal/vault-secret-hydrator/types
  */
 
 /**

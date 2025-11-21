@@ -29,26 +29,26 @@ RUN node .bin/npm-pkg-lock-platform.mjs && npm install
 # Build all workspaces in dependency order (packages-mjs + frontends)
 # Explicit dependency order to prevent build failures
 
-# Tier 1: Base packages (no @thinkeloquent dependencies)
-RUN npm run --workspace=@mta/config-loader build && \
-  npm run --workspace=@thinkeloquent/core-exceptions build && \
-  npm run --workspace=@thinkeloquent/core-decorator-registry build && \
-  npm run --workspace=@thinkeloquent/core-no-cache build && \
-  npm run --workspace=@thinkeloquent/core-plugin-logger build && \
-  npm run --workspace=@thinkeloquent/core-route-logger build && \
-  npm run --workspace=@thinkeloquent/core-prisma-orchestrator build && \
-  npm run --workspace=@mta/ui-components build && \
-  npm run --workspace=@mta/utils build && \
-  npm run --workspace=@thinkeloquent/vault-secret-hydrator build
+# Tier 1: Base packages (no @internal dependencies)
+RUN npm run --workspace=@internal/config-loader build && \
+  npm run --workspace=@internal/core-exceptions build && \
+  npm run --workspace=@internal/core-decorator-registry build && \
+  npm run --workspace=@internal/core-no-cache build && \
+  npm run --workspace=@internal/core-plugin-logger build && \
+  npm run --workspace=@internal/core-route-logger build && \
+  npm run --workspace=@internal/core-prisma-orchestrator build && \
+  npm run --workspace=@internal/ui-components build && \
+  npm run --workspace=@internal/utils build && \
+  npm run --workspace=@internal/vault-secret-hydrator build
 
 # Tier 2: Packages that depend on tier 1
-RUN npm run --workspace=@thinkeloquent/core-configure build && \
-  npm run --workspace=@thinkeloquent/core-prisma-utils build && \
-  npm run --workspace=@thinkeloquent/core-spa-app build && \
-  npm run --workspace=@thinkeloquent/core-static-app build
+RUN npm run --workspace=@internal/core-configure build && \
+  npm run --workspace=@internal/core-prisma-utils build && \
+  npm run --workspace=@internal/core-spa-app build && \
+  npm run --workspace=@internal/core-static-app build
 
 # Tier 3: Packages that depend on tier 1 & 2
-RUN npm run --workspace=@thinkeloquent/skeleton build
+RUN npm run --workspace=@internal/skeleton build
 
 # Build all frontend workspaces (fastapi-apps/*/frontend)
 RUN npm run --workspaces --if-present build

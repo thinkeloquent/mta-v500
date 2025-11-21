@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-no-cache",
+  "name": "@internal/core-no-cache",
   "version": "1.0.5",
   "description": "Fastify plugin for setting no-cache headers on all responses",
   "license": "MIT",

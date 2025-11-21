@@ -1,14 +1,19 @@
 {
-  "name": "ai-sdk-examples-frontend",
+  "name": "@internal/ai-sdk-examples-frontend",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastify-apps/ai-sdk-examples/frontend/src",
   "projectType": "application",
-  "tags": ["type:frontend", "scope:fastify"],
+  "tags": [
+    "type:frontend",
+    "scope:fastify"
+  ],
   "targets": {
     "lint": {},
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "command": "npm run build",
         "cwd": "fastify-apps/ai-sdk-examples/frontend"

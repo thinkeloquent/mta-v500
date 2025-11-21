@@ -10,7 +10,7 @@ export type { DecoratorInfo, RegistrationResult, RegisterOptions };
  *
  * @example
  * ```typescript
- * import { DecoratorRegistry } from '@thinkeloquent/core-decorator-registry';
+ * import { DecoratorRegistry } from '@internal/core-decorator-registry';
  *
  * // Try to register a decorator
  * const result = DecoratorRegistry.register({

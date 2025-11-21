@@ -1,9 +1,15 @@
 {
-  "name": "fastify-main",
+  "name": "@internal/fastify-main",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastify-apps/main",
   "projectType": "application",
-  "tags": ["type:app", "scope:fastify"],
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/skeleton"
+  ],
   "targets": {
     "lint": {},
     "dev": {

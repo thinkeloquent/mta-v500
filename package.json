@@ -4,6 +4,11 @@
   "description": "Multi-language monorepo (Python + JavaScript) using Nx",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
   "workspaces": [
     "packages-mjs/*",
     "fastify-apps/*",
@@ -12,7 +17,7 @@
   ],
   "scripts": {
     "postinstall": "node scripts/ensure-rollup-binary.mjs",
-    "build": "nx run-many -t build",
+    "build": "pnpm nx run-many --skip-nx-cache --verbose --target=build --output-style=stream",
     "dev": "nx run-many -t dev",
     "test": "nx run-many -t test",
     "clean": "nx run-many -t clean",
@@ -95,14 +100,14 @@
     "@fastify/swagger": "9.6.1",
     "@fastify/swagger-ui": "5.2.3",
     "@monaco-editor/react": "4.7.0",
-    "@thinkeloquent/core-decorator-registry": "*",
-    "@thinkeloquent/core-exceptions": "*",
-    "@thinkeloquent/core-no-cache": "^1.0.5",
-    "@thinkeloquent/core-plugin-logger": "^1.0.4",
-    "@thinkeloquent/core-prisma-utils": "^1.0.4",
-    "@thinkeloquent/core-route-logger": "^1.1.4",
-    "@thinkeloquent/core-static-app": "*",
-    "@thinkeloquent/skeleton": "*",
+    "@internal/core-decorator-registry": "workspace:*",
+    "@internal/core-exceptions": "workspace:*",
+    "@internal/core-no-cache": "workspace:*",
+    "@internal/core-plugin-logger": "workspace:*",
+    "@internal/core-prisma-utils": "workspace:*",
+    "@internal/core-route-logger": "workspace:*",
+    "@internal/core-static-app": "workspace:*",
+    "@internal/skeleton": "workspace:*",
     "ai": "4.3.19",
     "chalk": "5.6.2",
     "chokidar": "4.0.3",
@@ -138,7 +143,9 @@
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
-  "optionalDependencies": {
-    "@rollup/rollup-darwin-arm64": "^4.53.1"
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowAny": []
+    }
   }
 }

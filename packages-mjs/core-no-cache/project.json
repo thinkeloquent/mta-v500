@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-no-cache",
+  "name": "@internal/core-no-cache",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-no-cache/src",
   "projectType": "library",

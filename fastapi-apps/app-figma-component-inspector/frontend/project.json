@@ -1,14 +1,19 @@
 {
-  "name": "figma-component-inspector-frontend",
+  "name": "@internal/figma-component-inspector-frontend",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastapi-apps/app-figma-component-inspector/frontend/src",
   "projectType": "application",
-  "tags": ["type:frontend", "scope:fastapi"],
+  "tags": [
+    "type:frontend",
+    "scope:fastapi"
+  ],
   "targets": {
     "lint": {},
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "command": "npm run build",
         "cwd": "fastapi-apps/app-figma-component-inspector/frontend"

@@ -1,5 +1,5 @@
 /**
- * Basic usage example for @thinkeloquent/core-plugin-logger
+ * Basic usage example for @internal/core-plugin-logger
  *
  * To run this example:
  * 1. Build the module: npm run build

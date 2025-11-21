@@ -9,7 +9,7 @@ import { SpaAppOptionsSchema } from './types.js';
  * Core SPA App Plugin
  *
  * Serves index.html for SPA client-side routing.
- * Does NOT serve static files - use @thinkeloquent/core-static-app for that.
+ * Does NOT serve static files - use @internal/core-static-app for that.
  */
 const coreSpaAppPlugin: FastifyPluginAsync<SpaAppOptions> = async (
   fastify: FastifyInstance,

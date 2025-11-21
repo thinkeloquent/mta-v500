@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-exceptions",
+  "name": "@internal/core-exceptions",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-exceptions/src",
   "projectType": "library",
@@ -7,7 +7,9 @@
     "lint": {},
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "command": "tsc",
         "cwd": "packages-mjs/core-exceptions"
@@ -30,7 +32,9 @@
     },
     "test": {
       "executor": "@nx/vite:test",
-      "outputs": ["{projectRoot}/coverage"],
+      "outputs": [
+        "{projectRoot}/coverage"
+      ],
       "options": {
         "config": "packages-mjs/core-exceptions/vitest.config.ts",
         "passWithNoTests": true
@@ -44,5 +48,9 @@
       }
     }
   },
-  "tags": ["type:library", "scope:core", "level:0"]
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:0"
+  ]
 }

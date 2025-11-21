@@ -1,5 +1,5 @@
 {
-  "name": "@mta/fastify-ai-sdk-examples",
+  "name": "@internal/fastify-ai-sdk-examples",
   "version": "1.0.0",
   "description": "AI SDK streaming examples with Fastify",
   "type": "module",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "^0.2.14",
     "@fastify/static": "^8.0.2",
-    "@thinkeloquent/skeleton": "*",
+    "@internal/skeleton": "workspace:*",
     "ai": "^4.0.56",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.0",

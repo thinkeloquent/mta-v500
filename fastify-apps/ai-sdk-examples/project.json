@@ -1,9 +1,15 @@
 {
-  "name": "ai-sdk-examples",
+  "name": "@internal/fastify-ai-sdk-examples",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastify-apps/ai-sdk-examples/src",
   "projectType": "application",
-  "tags": ["type:app", "scope:fastify"],
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/skeleton"
+  ],
   "targets": {
     "lint": {},
     "dev": {

@@ -1,5 +1,5 @@
 {
-  "name": "@mta/fastify-main",
+  "name": "@internal/fastify-main",
   "version": "1.0.0",
   "description": "Main Fastify orchestrator server for MTA",
   "type": "module",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@fastify/basic-auth": "^6.2.0",
-    "@thinkeloquent/skeleton": "*",
+    "@internal/skeleton": "workspace:*",
     "dotenv": "^16.4.7"
   },
   "keywords": [

@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-prisma-orchestrator",
+  "name": "@internal/core-prisma-orchestrator",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-prisma-orchestrator/src",
   "projectType": "library",

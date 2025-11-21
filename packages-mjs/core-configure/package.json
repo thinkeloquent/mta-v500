@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-configure",
+  "name": "@internal/core-configure",
   "version": "2.0.4",
   "description": "Entity configuration management with deep merging, validation, and entity definitions",
   "license": "MIT",
@@ -42,7 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@thinkeloquent/core-exceptions": "*",
+    "@internal/core-exceptions": "workspace:*",
     "deepmerge": "^4.3.0",
     "zod": "^3.23.8"
   },

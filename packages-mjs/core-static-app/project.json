@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-static-app",
+  "name": "@internal/core-static-app",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-static-app/src",
   "projectType": "library",
@@ -41,5 +41,8 @@
     "type:library",
     "scope:core",
     "level:0"
+  ],
+  "implicitDependencies": [
+    "@internal/core-decorator-registry"
   ]
 }

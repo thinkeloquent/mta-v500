@@ -1,5 +1,5 @@
 {
-  "name": "@mta/ui-components",
+  "name": "@internal/ui-components",
   "version": "1.0.0",
   "description": "Shared React UI components for MTA applications",
   "main": "dist/index.js",
@@ -9,7 +9,12 @@
     "build": "vite build",
     "dev": "vite build --watch"
   },
-  "keywords": ["mta", "react", "ui", "components"],
+  "keywords": [
+    "mta",
+    "react",
+    "ui",
+    "components"
+  ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {

@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-no-cache
+ * @module @internal/core-no-cache
  * Type definitions for no-cache plugin
  */
 

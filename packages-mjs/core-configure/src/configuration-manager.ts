@@ -1,4 +1,4 @@
-import { Err, Ok, type Result } from '@thinkeloquent/core-exceptions';
+import { Err, Ok, type Result } from '@internal/core-exceptions';
 import { EntityDefinitionRegistry } from './entity-definitions.js';
 import { getDefaultMergeOptions, mergeConfigs, mergeLayers } from './merge-strategies.js';
 import {

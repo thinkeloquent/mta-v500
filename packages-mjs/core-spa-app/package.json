@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-spa-app",
+  "name": "@internal/core-spa-app",
   "version": "1.0.4",
   "description": "Fastify plugin for serving SPA routing (index.html fallback)",
   "license": "MIT",

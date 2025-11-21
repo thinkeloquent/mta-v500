@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-prisma-utils",
+  "name": "@internal/core-prisma-utils",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-prisma-utils/src",
   "projectType": "library",
@@ -49,6 +49,6 @@
     "level:1"
   ],
   "implicitDependencies": [
-    "@thinkeloquent/core-exceptions"
+    "@internal/core-exceptions"
   ]
 }

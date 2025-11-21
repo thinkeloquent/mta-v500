@@ -1,14 +1,19 @@
 {
-  "name": "s3-admin-client",
+  "name": "@internal/s3-admin-client",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastapi-apps/app-aws-s3-files/frontend/src",
   "projectType": "application",
-  "tags": ["type:frontend", "scope:fastapi"],
+  "tags": [
+    "type:frontend",
+    "scope:fastapi"
+  ],
   "targets": {
     "lint": {},
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "command": "npm run build",
         "cwd": "fastapi-apps/app-aws-s3-files/frontend"

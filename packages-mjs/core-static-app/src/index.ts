@@ -4,7 +4,7 @@
  * A Fastify plugin for serving static files with SPA support.
  * Perfect for serving Vite-built applications.
  *
- * @module @thinkeloquent/core-static-app
+ * @module @internal/core-static-app
  */
 
 export { default } from './plugin.js';

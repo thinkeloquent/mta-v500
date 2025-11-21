@@ -1,4 +1,4 @@
-import { ConnectionError, DatabaseConfigurationError } from '@thinkeloquent/core-exceptions';
+import { ConnectionError, DatabaseConfigurationError } from '@internal/core-exceptions';
 import type {
   AppPrismaClientOptions,
   DatabaseConfigValidation,
@@ -66,7 +66,7 @@ export function validateDatabaseConfig(databaseUrl?: string): DatabaseConfigVali
  * @example
  * ```typescript
  * import { PrismaClient } from '@prisma/client-auth';
- * import { initializePrismaClient } from '@thinkeloquent/core-prisma-utils';
+ * import { initializePrismaClient } from '@internal/core-prisma-utils';
  *
  * const { client, disconnect } = await initializePrismaClient(PrismaClient, {
  *   databaseUrl: process.env.DATABASE_URL,
@@ -182,7 +182,7 @@ export async function initializePrismaClient<
  * @example
  * ```typescript
  * import { PrismaClient } from '@prisma/client-auth';
- * import { createPrismaClientFactory } from '@thinkeloquent/core-prisma-utils';
+ * import { createPrismaClientFactory } from '@internal/core-prisma-utils';
  *
  * const createAuthPrisma = createPrismaClientFactory(PrismaClient, {
  *   enableQueryLogging: process.env.NODE_ENV === 'development',
@@ -211,7 +211,7 @@ export function createPrismaClientFactory<
  * @example
  * ```typescript
  * import { PrismaClient } from '.prisma/client-auth';
- * import { createAppPrismaClientFactory } from '@thinkeloquent/core-prisma-utils';
+ * import { createAppPrismaClientFactory } from '@internal/core-prisma-utils';
  *
  * const createAuthPrisma = createAppPrismaClientFactory(
  *   'auth',

@@ -1,6 +1,6 @@
-import noCache from '@thinkeloquent/core-no-cache';
-import pluginLogger from '@thinkeloquent/core-plugin-logger';
-import routeLogger from '@thinkeloquent/core-route-logger';
+import noCache from '@internal/core-no-cache';
+import pluginLogger from '@internal/core-plugin-logger';
+import routeLogger from '@internal/core-route-logger';
 import type { FastifyInstance } from 'fastify';
 import { type AppRegistration, AppRegistry, type RegisteredApp } from './lib/app-registry.js';
 import { headerRequestEnhancements } from './plugins/header-request-enhancements/index.js';

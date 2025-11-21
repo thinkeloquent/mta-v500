@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import basicAuth from '@fastify/basic-auth';
-import { createServer, launchServer } from '@thinkeloquent/skeleton';
+import { createServer, launchServer } from '@internal/skeleton';
 import aiSdkExamplesPlugin from '../ai-sdk-examples/src/index.mjs';
 import { authServiceApp } from './modules/auth-service.mjs';
 import { userServiceApp } from './modules/user-service.mjs';

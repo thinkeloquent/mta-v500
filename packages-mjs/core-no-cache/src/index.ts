@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-no-cache
+ * @module @internal/core-no-cache
  * @description Fastify plugin for setting no-cache headers on all responses
  *
  * Features:
@@ -18,7 +18,7 @@
  * @example
  * ```typescript
  * import Fastify from 'fastify';
- * import noCache from '@thinkeloquent/core-no-cache';
+ * import noCache from '@internal/core-no-cache';
  *
  * const server = Fastify();
  *

@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-plugin-logger
+ * @module @internal/core-plugin-logger
  * @description Fastify plugin for logging all registered plugins to console and file
  *
  * Features:
@@ -13,7 +13,7 @@
  * @example
  * ```typescript
  * import Fastify from 'fastify';
- * import pluginLogger from '@thinkeloquent/core-plugin-logger';
+ * import pluginLogger from '@internal/core-plugin-logger';
  *
  * const server = Fastify();
  *

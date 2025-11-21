@@ -1,5 +1,5 @@
 {
-  "name": "@mta/utils",
+  "name": "@internal/utils",
   "version": "1.0.0",
   "description": "Shared utilities for MTA applications",
   "main": "dist/index.js",

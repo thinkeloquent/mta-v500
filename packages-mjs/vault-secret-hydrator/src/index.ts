@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/vault-secret-hydrator
+ * @module @internal/vault-secret-hydrator
  * @description TypeScript library for parsing Vault secrets with file-backed secret support
  *
  * Features:
@@ -13,7 +13,7 @@
  *
  * @example
  * ```typescript
- * import { createVaultSecretParser } from '@thinkeloquent/vault-secret-hydrator';
+ * import { createVaultSecretParser } from '@internal/vault-secret-hydrator';
  *
  * const parser = createVaultSecretParser();
  * const secret = `

@@ -1,6 +1,6 @@
 /**
  * @file Core parser implementation
- * @module @thinkeloquent/vault-secret-hydrator/parser
+ * @module @internal/vault-secret-hydrator/parser
  */
 
 import { parse as parseProperties } from 'properties-parser';

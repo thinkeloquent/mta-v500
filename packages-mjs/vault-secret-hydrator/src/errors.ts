@@ -1,6 +1,6 @@
 /**
  * @file Error classes for vault secret parser
- * @module @thinkeloquent/vault-secret-hydrator/errors
+ * @module @internal/vault-secret-hydrator/errors
  */
 
 /**

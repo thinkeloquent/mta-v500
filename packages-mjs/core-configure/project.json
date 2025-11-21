@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-configure",
+  "name": "@internal/core-configure",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-configure/src",
   "projectType": "library",
@@ -59,6 +59,6 @@
     "level:1"
   ],
   "implicitDependencies": [
-    "@thinkeloquent/core-exceptions"
+    "@internal/core-exceptions"
   ]
 }

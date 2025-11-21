@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-plugin-logger
+ * @module @internal/core-plugin-logger
  * Type definitions for plugin logging plugin
  */
 

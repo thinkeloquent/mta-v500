@@ -1,4 +1,4 @@
-import { Err, Ok, type Result } from '@thinkeloquent/core-exceptions';
+import { Err, Ok, type Result } from '@internal/core-exceptions';
 import { type EntityDefinition, EntityDefinitionSchema } from './types.js';
 
 /**

@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-static-app",
+  "name": "@internal/core-static-app",
   "version": "1.0.3",
   "description": "Fastify plugin for serving static files with SPA support",
   "license": "MIT",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@fastify/static": "^8.0.2",
-    "@thinkeloquent/core-decorator-registry": "*",
+    "@internal/core-decorator-registry": "workspace:*",
     "fastify-plugin": "^5.0.1",
     "zod": "^3.24.1"
   },

@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-route-logger
+ * @module @internal/core-route-logger
  * @description Fastify plugin for logging all registered routes to console and file
  *
  * Features:
@@ -13,7 +13,7 @@
  * @example
  * ```typescript
  * import Fastify from 'fastify';
- * import routeLogger from '@thinkeloquent/core-route-logger';
+ * import routeLogger from '@internal/core-route-logger';
  *
  * const server = Fastify();
  *

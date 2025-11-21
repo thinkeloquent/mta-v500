@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-plugin-logger",
+  "name": "@internal/core-plugin-logger",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/core-plugin-logger/src",
   "projectType": "library",

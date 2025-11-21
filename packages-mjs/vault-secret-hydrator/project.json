@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/vault-secret-hydrator",
+  "name": "@internal/vault-secret-hydrator",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages-mjs/vault-secret-hydrator/src",
   "projectType": "library",

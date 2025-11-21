@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-prisma-utils",
+  "name": "@internal/core-prisma-utils",
   "version": "1.0.4",
   "description": "Shared Prisma utilities for multi-tenant framework",
   "license": "MIT",
@@ -41,7 +41,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@thinkeloquent/core-exceptions": "^2.0.4"
+    "@internal/core-exceptions": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,14 +1,19 @@
 {
-  "name": "react-component-esm-frontend",
+  "name": "@internal/react-component-esm-frontend",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "fastapi-apps/app-react-component-esm/frontend/src",
   "projectType": "application",
-  "tags": ["type:frontend", "scope:fastapi"],
+  "tags": [
+    "type:frontend",
+    "scope:fastapi"
+  ],
   "targets": {
     "lint": {},
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "command": "npm run build",
         "cwd": "fastapi-apps/app-react-component-esm/frontend"

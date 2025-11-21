@@ -28,7 +28,7 @@ RESET   := \033[0m
 PROJECT_NAME ?= mta-v500
 VERSION ?= latest
 NODE_VERSION ?= 22
-PNPM_VERSION ?= 9.15.0
+PNPM_VERSION ?= 10.23.0
 
 # PNPM Configuration
 PNPM_REGISTRY ?= https://registry.npmjs.org
@@ -41,9 +41,9 @@ INSTALL_OPTS ?=
 TEST_OPTS ?=
 
 # Workspace Tiers (dependency order from Dockerfile)
-TIER1_WORKSPACES := @mta/config-loader @thinkeloquent/core-exceptions @thinkeloquent/core-decorator-registry @thinkeloquent/core-no-cache @thinkeloquent/core-plugin-logger @thinkeloquent/core-route-logger @thinkeloquent/core-prisma-orchestrator @mta/ui-components @mta/utils @thinkeloquent/vault-secret-hydrator
-TIER2_WORKSPACES := @thinkeloquent/core-configure @thinkeloquent/core-prisma-utils @thinkeloquent/core-spa-app @thinkeloquent/core-static-app
-TIER3_WORKSPACES := @thinkeloquent/skeleton
+TIER1_WORKSPACES := @internal/config-loader @internal/core-exceptions @internal/core-decorator-registry @internal/core-no-cache @internal/core-plugin-logger @internal/core-route-logger @internal/core-prisma-orchestrator @internal/ui-components @internal/utils @internal/vault-secret-hydrator
+TIER2_WORKSPACES := @internal/core-configure @internal/core-prisma-utils @internal/core-spa-app @internal/core-static-app
+TIER3_WORKSPACES := @internal/skeleton
 
 # ------------------------------------------------------------------------------
 # Help

@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-decorator-registry",
+  "name": "@internal/core-decorator-registry",
   "version": "1.0.4",
   "description": "Global decorator registry for tracking Fastify decorator lifecycle",
   "license": "MIT",

@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-prisma-orchestrator",
+  "name": "@internal/core-prisma-orchestrator",
   "version": "1.0.4",
   "description": "CLI orchestrator for managing multiple Prisma schemas in a monorepo",
   "license": "MIT",

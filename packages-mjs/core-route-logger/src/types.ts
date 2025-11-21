@@ -1,5 +1,5 @@
 /**
- * @module @thinkeloquent/core-route-logger
+ * @module @internal/core-route-logger
  * Type definitions for route logging plugin
  */
 

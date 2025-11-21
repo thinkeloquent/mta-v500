@@ -1,5 +1,5 @@
 {
-  "name": "@thinkeloquent/core-plugin-logger",
+  "name": "@internal/core-plugin-logger",
   "version": "1.0.4",
   "description": "Fastify plugin for logging all registered plugins to console, file, and/or structured JSON",
   "license": "MIT",

@@ -108,7 +108,7 @@ export const TenantExtractors = {
  *
  * @example
  * ```typescript
- * import { createTenantContextHook, TenantExtractors } from '@thinkeloquent/core-prisma-utils';
+ * import { createTenantContextHook, TenantExtractors } from '@internal/core-prisma-utils';
  *
  * fastify.addHook('preHandler', createTenantContextHook(
  *   TenantExtractors.fromHeader('x-tenant-id')
@@ -139,7 +139,7 @@ export function createTenantContextHook(extractor: (request: any) => string | nu
  *
  * @example
  * ```typescript
- * import { createTenantQueryExtension } from '@thinkeloquent/core-prisma-utils';
+ * import { createTenantQueryExtension } from '@internal/core-prisma-utils';
  *
  * const prisma = new PrismaClient().$extends(
  *   createTenantQueryExtension(() => request.tenantId)
