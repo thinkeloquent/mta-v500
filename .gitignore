@@ -120,6 +120,16 @@ dist/
 build/
 *.tsbuildinfo
 
+# Prevent compiled artifacts in src directories (should only be in dist/)
+packages-mjs/*/src/**/*.js
+packages-mjs/*/src/**/*.d.ts
+packages-mjs/*/src/**/*.js.map
+packages-mjs/*/src/**/*.d.ts.map
+common/types/typescript/*.js
+common/types/typescript/*.d.ts
+common/types/typescript/*.js.map
+common/types/typescript/*.d.ts.map
+
 # Coverage
 coverage/
 .nyc_output/
