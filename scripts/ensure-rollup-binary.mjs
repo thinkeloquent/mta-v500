@@ -38,7 +38,7 @@ try {
 } catch {
   console.log(`Installing ${pkg} for ${key}...`);
   try {
-    execSync(`npm install ${pkg} --save-optional --ignore-scripts`, {
+    execSync(`pnpm add -w ${pkg} --save-optional --ignore-scripts`, {
       stdio: 'inherit',
       cwd: process.cwd(),
     });

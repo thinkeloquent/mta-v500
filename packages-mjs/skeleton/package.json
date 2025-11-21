@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx src/self-launch-server.ts",
     "dev:watch": "tsx watch src/self-launch-server.ts",
-    "build": "npx tsc -p tsconfig.json",
+    "build": "tsc",
     "start": "node ./dist/self-launch-server.js",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",

@@ -35,7 +35,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "npx tsc -p tsconfig.json",
+    "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

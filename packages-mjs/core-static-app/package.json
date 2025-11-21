@@ -35,7 +35,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "npx tsc -p tsconfig.json",
+    "build": "tsc",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -44,7 +44,7 @@
     "@fastify/static": "^8.0.2",
     "@internal/core-decorator-registry": "workspace:*",
     "fastify-plugin": "^5.0.1",
-    "zod": "^3.24.1"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

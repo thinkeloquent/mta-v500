@@ -6,7 +6,7 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "npx tsc -p tsconfig.json",
+    "build": "tsc",
     "dev": "tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.json --watch"
   },
   "keywords": [
