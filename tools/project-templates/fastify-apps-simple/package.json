@@ -1,0 +1,25 @@
+{
+  "name": "@internal/create-fastify-app",
+  "version": "1.0.0",
+  "description": "Scaffolding tool for creating new Fastify applications",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "create-fastify-app": "./bin/create-fastify-app.mjs"
+  },
+  "files": [
+    "bin",
+    "template"
+  ],
+  "scripts": {
+    "create": "node bin/create-fastify-app.mjs"
+  },
+  "keywords": [
+    "fastify",
+    "scaffolding",
+    "generator",
+    "template"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

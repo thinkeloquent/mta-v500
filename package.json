@@ -17,6 +17,7 @@
   ],
   "scripts": {
     "postinstall": "node scripts/ensure-rollup-binary.mjs",
+    "create:fastify-app": "node tools/project-templates/fastify-apps-simple/bin/create-fastify-app.mjs",
     "build": "pnpm nx run-many --skip-nx-cache --verbose --target=build --output-style=stream",
     "dev": "nx run-many -t dev",
     "test": "nx run-many -t test",
