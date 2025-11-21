@@ -1,0 +1,1 @@
+find . -name "pyproject.toml" -exec sed -i '' '/^readme[[:space:]]*=/d' {} \;
