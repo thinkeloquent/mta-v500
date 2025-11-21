@@ -20,16 +20,16 @@
  *   await startServer(fastify);
  */
 
-import 'dotenv/config';
-import { timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import basicAuth from '@fastify/basic-auth';
-import { createServer, launchServer } from '@internal/skeleton';
-import aiSdkChatPlugin from '../ai-sdk-chat/src/index.mjs';
-import { authServiceApp } from './modules/auth-service.mjs';
-import { userServiceApp } from './modules/user-service.mjs';
+import "dotenv/config";
+import { timingSafeEqual } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import basicAuth from "@fastify/basic-auth";
+import { createServer, launchServer } from "@internal/skeleton";
+import aiSdkChatPlugin from "../ai-sdk-chat/src/index.mjs";
+import { authServiceApp } from "./modules/auth-service.mjs";
+import { userServiceApp } from "./modules/user-service.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,13 +45,13 @@ const __dirname = dirname(__filename);
  * @throws {Error} If configuration is invalid or missing
  */
 export function loadConfig(configPath) {
-  const resolvedPath = configPath || join(__dirname, 'mta-prisma.config.json');
+  const resolvedPath = configPath || join(__dirname, "mta-prisma.config.json");
 
   if (!existsSync(resolvedPath)) {
     throw new Error(`Configuration file not found: ${resolvedPath}`);
   }
 
-  const configContent = readFileSync(resolvedPath, 'utf-8');
+  const configContent = readFileSync(resolvedPath, "utf-8");
 
   if (!configContent.trim()) {
     throw new Error(`Configuration file is empty: ${resolvedPath}`);
@@ -100,6 +100,7 @@ export function buildDatabaseUrl() {
  * @param {object} [options] - Server options
  * @param {string} [options.configPath] - Custom config file path
  * @param {object} [options.serverOptions] - Additional Fastify server options
+ * @param {object} [options.globalSettings] - Global settings accessible via fastify.settings
  * @returns {Promise<{fastify: object, config: object, databaseUrl: string|undefined}>}
  */
 export async function createMainServer(options = {}) {
@@ -109,7 +110,9 @@ export async function createMainServer(options = {}) {
     config = loadConfig(options.configPath);
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Error(`Configuration file contains invalid JSON: ${error.message}`);
+      throw new Error(
+        `Configuration file contains invalid JSON: ${error.message}`
+      );
     }
     throw error;
   }
@@ -117,31 +120,41 @@ export async function createMainServer(options = {}) {
   const databaseUrl = buildDatabaseUrl();
 
   // Create Fastify instance with CORS configured via skeleton
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.NODE_ENV === "production";
   const fastify = await createServer({
     logger: {
-      level: process.env.LOG_LEVEL || 'info',
+      level: process.env.LOG_LEVEL || "info",
     },
     prettyPrint: !isProduction,
     corsAllowLocalhost: !isProduction,
     ...options.serverOptions,
   });
 
+  // Decorate fastify with global settings for access by all plugins
+  fastify.decorate("settings", {
+    databaseUrl: undefined, // Will be set below
+    isProduction,
+    ...options.globalSettings,
+  });
+
   // Log database configuration status with safe URL masking
   if (databaseUrl) {
     let maskedUrl;
     try {
-      maskedUrl = databaseUrl.replace(/:([^:@]+)@/, ':***@');
+      maskedUrl = databaseUrl.replace(/:([^:@]+)@/, ":***@");
     } catch {
-      maskedUrl = '[malformed URL - password hidden]';
-      fastify.log.warn('Failed to mask database URL');
+      maskedUrl = "[malformed URL - password hidden]";
+      fastify.log.warn("Failed to mask database URL");
     }
     fastify.log.info(`Database URL configured: ${maskedUrl}`);
   } else {
     fastify.log.warn(
-      '⚠ Database URL not configured. Set POSTGRES_USER and POSTGRES_PASSWORD, or DATABASE_URL',
+      "⚠ Database URL not configured. Set POSTGRES_USER and POSTGRES_PASSWORD, or DATABASE_URL"
     );
   }
+
+  // Update settings with databaseUrl
+  fastify.settings.databaseUrl = databaseUrl;
 
   return { fastify, config, databaseUrl };
 }
@@ -165,12 +178,12 @@ export async function registerUnderConstructionAuth(fastify) {
   }
 
   fastify.log.info(
-    '🚧 Under Construction mode enabled - BasicAuth required for all routes except health checks',
+    "🚧 Under Construction mode enabled - BasicAuth required for all routes except health checks"
   );
 
   // Define paths that are exempt from authentication
-  const EXEMPT_PATHS = new Set(['/', '/health', '/status', '/ping']);
-  const EXEMPT_PREFIXES = ['/sys/status/', '/documentation/'];
+  const EXEMPT_PATHS = new Set(["/", "/health", "/status", "/ping"]);
+  const EXEMPT_PREFIXES = ["/sys/status/", "/documentation/"];
 
   const isExemptPath = (path) => {
     if (EXEMPT_PATHS.has(path)) {
@@ -188,27 +201,29 @@ export async function registerUnderConstructionAuth(fastify) {
   await fastify.register(basicAuth, {
     validate: async (username, password) => {
       try {
-        const usernameBuffer = Buffer.from(username, 'utf8');
-        const passwordBuffer = Buffer.from(password, 'utf8');
-        const keyBuffer = Buffer.from(underConstructionKey, 'utf8');
+        const usernameBuffer = Buffer.from(username, "utf8");
+        const passwordBuffer = Buffer.from(password, "utf8");
+        const keyBuffer = Buffer.from(underConstructionKey, "utf8");
 
         const usernameMatches =
-          usernameBuffer.length === keyBuffer.length && timingSafeEqual(usernameBuffer, keyBuffer);
+          usernameBuffer.length === keyBuffer.length &&
+          timingSafeEqual(usernameBuffer, keyBuffer);
         const passwordMatches =
-          passwordBuffer.length === keyBuffer.length && timingSafeEqual(passwordBuffer, keyBuffer);
+          passwordBuffer.length === keyBuffer.length &&
+          timingSafeEqual(passwordBuffer, keyBuffer);
 
         if (!usernameMatches || !passwordMatches) {
-          return new Error('Invalid credentials');
+          return new Error("Invalid credentials");
         }
       } catch {
-        return new Error('Invalid credentials');
+        return new Error("Invalid credentials");
       }
     },
-    authenticate: { realm: 'Under Construction' },
+    authenticate: { realm: "Under Construction" },
   });
 
   // Add global hook to enforce authentication on non-exempt routes
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook("onRequest", async (request) => {
     if (isExemptPath(request.url)) {
       return;
     }
@@ -222,42 +237,47 @@ export async function registerUnderConstructionAuth(fastify) {
 
 /**
  * Gets the default internal apps to register
+ * @param {object} [appOptions] - Optional options to pass to individual apps
+ * @param {object} [appOptions.authService] - Options for auth-service
+ * @param {object} [appOptions.userService] - Options for user-service
+ * @param {object} [appOptions.aiSdkChat] - Options for ai-sdk-chat
  * @returns {Array} Array of app configurations
  */
-export function getDefaultApps() {
+export function getDefaultApps(appOptions = {}) {
   return [
     {
-      name: 'auth-service',
+      name: "auth-service",
       plugin: authServiceApp,
-      options: {},
+      options: { ...(appOptions.authService || {}) },
       metadata: {
-        version: '1.0.0',
-        description: 'Authentication service',
+        version: "1.0.0",
+        description: "Authentication service",
         dependencies: [],
       },
     },
     {
-      name: 'user-service',
+      name: "user-service",
       plugin: userServiceApp,
-      options: {},
+      options: { ...(appOptions.userService || {}) },
       metadata: {
-        version: '1.0.0',
-        description: 'User management service',
-        dependencies: ['auth-service'],
+        version: "1.0.0",
+        description: "User management service",
+        dependencies: ["auth-service"],
       },
     },
     {
-      name: 'ai-sdk-chat',
+      name: "ai-sdk-chat",
       plugin: aiSdkChatPlugin,
       options: {
-        apiPrefix: '/api/ai-sdk-chat',
-        frontendPrefix: '/apps/ai-sdk-chat',
+        apiPrefix: "/api/ai-sdk-chat",
+        frontendPrefix: "/apps/ai-sdk-chat",
         useFastifyPlugin: false,
+        ...(appOptions.aiSdkChat || {}),
       },
       metadata: {
-        version: '1.0.0',
-        description: 'AI SDK chat with multi-provider support',
-        tags: ['ai', 'streaming', 'chat'],
+        version: "1.0.0",
+        description: "AI SDK chat with multi-provider support",
+        tags: ["ai", "streaming", "chat"],
         dependencies: [],
       },
     },
@@ -268,10 +288,11 @@ export function getDefaultApps() {
  * Registers internal service modules
  * @param {object} fastify - Fastify instance
  * @param {Array} [apps] - Optional custom apps array (defaults to getDefaultApps())
+ * @param {object} [appOptions] - Options to pass to individual apps (only used when apps is null)
  * @returns {Promise<void>}
  */
-export async function registerInternalApps(fastify, apps) {
-  const appsToRegister = apps || getDefaultApps();
+export async function registerInternalApps(fastify, apps, appOptions) {
+  const appsToRegister = apps || getDefaultApps(appOptions);
   await fastify.apps.registerAll(appsToRegister);
 }
 
@@ -294,12 +315,12 @@ export async function loadExternalApps(fastify, config, databaseUrl) {
  * @param {object} fastify - Fastify instance
  */
 export function registerHealthRoutes(fastify) {
-  fastify.get('/', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  fastify.get("/", async () => {
+    return { status: "ok", timestamp: new Date().toISOString() };
   });
 
-  fastify.get('/health', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  fastify.get("/health", async () => {
+    return { status: "ok", timestamp: new Date().toISOString() };
   });
 }
 
@@ -315,6 +336,7 @@ export function registerHealthRoutes(fastify) {
  * @param {string} [options.configPath] - Custom config file path
  * @param {object} [options.serverOptions] - Additional Fastify server options
  * @param {Array} [options.internalApps] - Custom internal apps (defaults to getDefaultApps())
+ * @param {object} [options.internalAppsOptions] - Options to pass to individual default apps
  * @param {boolean} [options.skipExternalApps] - Skip loading external apps from config
  * @param {boolean} [options.skipHealthRoutes] - Skip registering health routes
  * @returns {Promise<{fastify: object, config: object, databaseUrl: string|undefined}>}
@@ -326,7 +348,11 @@ export async function initializeServer(options = {}) {
   await registerUnderConstructionAuth(fastify);
 
   // Register internal service modules
-  await registerInternalApps(fastify, options.internalApps);
+  await registerInternalApps(
+    fastify,
+    options.internalApps,
+    options.internalAppsOptions
+  );
 
   // Load external apps from config
   if (!options.skipExternalApps) {
@@ -336,7 +362,7 @@ export async function initializeServer(options = {}) {
 
     fastify.log.info(
       { totalLoadTimeMs: totalLoadTime },
-      `Apps and static assets loaded in ${totalLoadTime}ms`,
+      `Apps and static assets loaded in ${totalLoadTime}ms`
     );
   }
 
@@ -359,8 +385,8 @@ export async function initializeServer(options = {}) {
  * @returns {Promise<void>}
  */
 export async function startServer(fastify, options = {}) {
-  const port = options.port || parseInt(process.env.PORT || '3000', 10);
-  const host = options.host || process.env.HOST || '0.0.0.0';
+  const port = options.port || parseInt(process.env.PORT || "3000", 10);
+  const host = options.host || process.env.HOST || "0.0.0.0";
 
   await launchServer(fastify, {
     port,
@@ -371,15 +397,17 @@ export async function startServer(fastify, options = {}) {
   });
 
   if (!options.quiet) {
-    console.log('\n🚀 User-Auth Service is running!');
-    console.log('📝 Try these endpoints:');
+    console.log("\n🚀 User-Auth Service is running!");
+    console.log("📝 Try these endpoints:");
     console.log(`   - http://${host}:${port}/api/auth/login`);
     console.log(`   - http://${host}:${port}/api/auth/verify`);
     console.log(`   - http://${host}:${port}/api/users (requires auth)`);
-    console.log('\n💡 Get a token first:');
+    console.log("\n💡 Get a token first:");
     console.log(`   curl http://localhost:${port}/api/auth/login`);
-    console.log('\n💡 Then use it:');
-    console.log(`   curl -H "Authorization: Bearer valid-token" http://localhost:${port}/api/users`);
+    console.log("\n💡 Then use it:");
+    console.log(
+      `   curl -H "Authorization: Bearer valid-token" http://localhost:${port}/api/users`
+    );
   }
 }
 

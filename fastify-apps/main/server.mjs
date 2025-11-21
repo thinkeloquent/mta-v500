@@ -25,9 +25,43 @@
 
 import { bootstrap } from './launch.mjs';
 
+// =============================================================================
+// App Options Configuration
+// =============================================================================
+// These options are passed down to individual app plugins during registration.
+// Each namespace corresponds to an app defined in getDefaultApps().
+//
+// Available namespaces:
+//   - authService: Options for auth-service plugin
+//   - userService: Options for user-service plugin
+//   - aiSdkChat: Options for ai-sdk-chat plugin
+// =============================================================================
+
+const appOptions = {
+  // Auth service options
+  authService: {
+    // tokenSecret: process.env.AUTH_TOKEN_SECRET,
+    // tokenExpiry: 3600,
+  },
+
+  // User service options
+  userService: {
+    // requireAuth: true,
+  },
+
+  // AI SDK Chat options
+  aiSdkChat: {
+    // Override default prefixes if needed:
+    // apiPrefix: '/api/ai-sdk-chat',
+    // frontendPrefix: '/apps/ai-sdk-chat',
+  },
+};
+
 // Bootstrap and start the server
 try {
-  await bootstrap();
+  await bootstrap({
+    internalAppsOptions: appOptions,
+  });
 } catch (error) {
   console.error('❌ Failed to start server:', error.message);
   if (error.stack) {
