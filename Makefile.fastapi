@@ -2,7 +2,7 @@
 # Implements CI targets: install, build, test, run, clean
 # Updated paths: app/ → fastapi-apps/
 
-.PHONY: install build test run clean help dev-install dev dev-force dev-app dev-all test-app test-integration \
+.PHONY: setup install build test run clean help dev-install dev dev-force dev-app dev-all test-app test-integration \
 	docker-check docker-start-daemon \
 	docker-build docker-build-no-cache docker-build-verbose docker-build-multi-arch docker-rebuild docker-recreate docker-refresh \
 	docker-run docker-start docker-run-foreground docker-run-it docker-run-dev \
@@ -46,6 +46,10 @@ HELLO_PORT := 8081
 # =============================================================================
 # CI Targets (called by root Makefile)
 # =============================================================================
+
+setup: ## Run full monorepo setup (Fastify + FastAPI + Vite)
+	@echo "[FastAPI] Running full monorepo setup..."
+	@$(MAKE) -f Makefile install
 
 install: dev-install
 	@echo "[FastAPI] Installation complete"
@@ -101,7 +105,7 @@ dev:
 		echo "Run: make -f Makefile.fastapi install"; \
 		exit 1; \
 	fi
-	@cd fastapi-apps/app && ../../$(VENV_BIN)/uvicorn main:app --host 0.0.0.0 --port $(MAIN_PORT) --reload \
+	@cd fastapi-apps/app && PYTHONUNBUFFERED=1 ../../$(VENV_BIN)/uvicorn main:app --host 0.0.0.0 --port $(MAIN_PORT) --reload \
 		--reload-exclude '../../.venv/*' \
 		--reload-exclude '__pycache__/*' \
 		--reload-exclude '*.pyc' \
@@ -561,8 +565,11 @@ docker-deploy: docker-build docker-push ## Deploy: build and push to registry
 help:
 	@echo "Makefile.fastapi - FastAPI Development"
 	@echo ""
+	@echo "Setup:"
+	@echo "  make -f Makefile.fastapi setup                 - Full monorepo setup (Fastify + FastAPI + Vite)"
+	@echo "  make -f Makefile.fastapi install               - Install FastAPI dependencies only"
+	@echo ""
 	@echo "CI Targets:"
-	@echo "  make -f Makefile.fastapi install               - Install all dependencies"
 	@echo "  make -f Makefile.fastapi build                 - Build FastAPI apps and frontends"
 	@echo "  make -f Makefile.fastapi test                  - Run all tests"
 	@echo "  make -f Makefile.fastapi run                   - Start main orchestrator"

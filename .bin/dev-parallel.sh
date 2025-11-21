@@ -7,8 +7,6 @@
 #   ./dev-parallel.sh app-name           # FastAPI + Fastify + Vite dev for app-name
 #   ./dev-parallel.sh app1 app2          # FastAPI + Fastify + Vite dev for multiple apps
 
-set -e
-
 # Capture Vite apps from arguments
 VITE_APPS=("$@")
 
@@ -22,54 +20,52 @@ echo -e "${GREEN}Starting FastAPI (port 8080), Fastify (port 3000), and Vite in 
 echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
 echo ""
 
-# Store PIDs
-FASTAPI_PID=""
-FASTIFY_PID=""
-VITE_PID=""
+# Track all background PIDs
+PIDS=()
 
-# Cleanup function
+# Cleanup function - kill all child processes
 cleanup() {
     echo ""
-    echo -e "${YELLOW}Stopping servers...${NC}"
+    echo -e "${YELLOW}Stopping all servers...${NC}"
 
-    if [ -n "$FASTAPI_PID" ]; then
-        echo "Stopping FastAPI (PID: $FASTAPI_PID)..."
-        kill -TERM $FASTAPI_PID 2>/dev/null || true
-        wait $FASTAPI_PID 2>/dev/null || true
-    fi
+    # Kill all tracked PIDs
+    for pid in "${PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Stopping process $pid..."
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
 
-    if [ -n "$FASTIFY_PID" ]; then
-        echo "Stopping Fastify (PID: $FASTIFY_PID)..."
-        kill -TERM $FASTIFY_PID 2>/dev/null || true
-        wait $FASTIFY_PID 2>/dev/null || true
-    fi
+    # Wait briefly for graceful shutdown
+    sleep 1
 
-    if [ -n "$VITE_PID" ]; then
-        echo "Stopping Vite (PID: $VITE_PID)..."
-        kill -TERM $VITE_PID 2>/dev/null || true
-        wait $VITE_PID 2>/dev/null || true
-    fi
-
-    # Additional cleanup - kill any remaining processes on these ports
+    # Force kill any remaining processes on the ports
+    echo "Cleaning up ports..."
     bash .bin/clean-port-3000.sh 2>/dev/null || true
     bash .bin/clean-port-8080.sh 2>/dev/null || true
+
+    # Kill any remaining child processes of this script
+    pkill -P $$ 2>/dev/null || true
 
     echo -e "${GREEN}All servers stopped${NC}"
     exit 0
 }
 
-# Set up trap
-trap cleanup INT TERM EXIT
+# Set up trap - catch INT (Ctrl+C), TERM, and EXIT
+trap cleanup INT TERM
 
-# Start FastAPI in background
+# Start FastAPI in background with prefixed output
 echo -e "${GREEN}Starting FastAPI...${NC}"
-make -f Makefile.fastapi dev &
-FASTAPI_PID=$!
+(make -f Makefile.fastapi dev 2>&1 | awk '{print "[FastAPI] " $0; fflush()}') &
+PIDS+=($!)
 
-# Start Fastify in background
+# Small delay to let FastAPI start first and reduce output interleaving
+sleep 1
+
+# Start Fastify in background with prefixed output
 echo -e "${GREEN}Starting Fastify...${NC}"
-make -f Makefile.fastify dev &
-FASTIFY_PID=$!
+(make -f Makefile.fastify dev 2>&1 | awk '{print "[Fastify] " $0; fflush()}') &
+PIDS+=($!)
 
 # Usage:
 # make dev                                    # FastAPI + Fastify only (no Vite)
@@ -78,13 +74,14 @@ FASTIFY_PID=$!
 
 # Start Vite in background (only if VITE_APPS is set)
 if [ ${#VITE_APPS[@]} -gt 0 ]; then
+    sleep 1
     # Launch dev servers for specified apps
     for app in "${VITE_APPS[@]}"; do
         echo -e "${GREEN}Starting Vite dev for ${app}...${NC}"
-        make -f Makefile.vite dev-frontend NAME="${app}" &
+        (make -f Makefile.vite dev-frontend NAME="${app}" 2>&1 | awk -v app="$app" '{print "[Vite:" app "] " $0; fflush()}') &
+        PIDS+=($!)
     done
-    VITE_PID=$!
 fi
 
-# Wait for all processes
+# Wait for all processes - this will be interrupted by the trap
 wait

@@ -2,6 +2,29 @@
 
 Multi-Tenant/Multi-App orchestrator supporting both FastAPI (Python) and Fastify (Node.js) applications with shared configuration and type-safe schemas.
 
+## Makefile
+
+### Build specific Dockerfile
+
+make -f Makefile.docker build DOCKERFILE=Dockerfile.fastapi
+
+### Build with target stage
+
+make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres
+
+### Build from subdirectory context
+
+make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify CONTEXT=./fastify-apps
+
+### Use existing thin wrappers (backwards compatible)
+
+make -f Makefile.fastify docker-build
+make -f Makefile.static-apps build
+
+### List available Dockerfiles
+
+make -f Makefile.docker list-dockerfiles
+
 ## Project Structure
 
 ```
@@ -540,6 +563,6 @@ For issues and questions:
 - Review `.claude/agents/` for subsystem details
 - Check Makefile help: `make help`
 
-  "optionalDependencies": {
-  "@rollup/rollup-darwin-arm64": "^4.53.1"
-  }
+"optionalDependencies": {
+"@rollup/rollup-darwin-arm64": "^4.53.1"
+}

@@ -2,10 +2,19 @@
 # Docker Makefile - Manage Docker Container Operations
 # ==============================================================================
 # Usage: make -f Makefile.docker <target>
-# Usage: make -f Makefile.docker all
-# Usage: make -f Makefile.docker build
+# Usage: make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify
+# Usage: make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres
 # Usage: make -f Makefile.docker run
 # Or: include Makefile.docker in your main Makefile
+#
+# Available Dockerfiles (root directory):
+#   - Dockerfile.python              Python 3.11 runtime for FastAPI
+#   - Dockerfile.database            PostgreSQL & Redis services (targets: postgres, redis)
+#   - Dockerfile.fastapi             Multi-stage FastAPI with frontend
+#   - Dockerfile.fastify             Multi-stage Fastify/Node.js
+#   - Dockerfile.static-apps         Static frontend artifact builder
+#   - Dockerfile.pnpm                Node.js with pnpm package manager
+#   - Dockerfile.static-apps-integration-test  Nginx for testing static files
 # ==============================================================================
 
 .PHONY: help
@@ -40,12 +49,33 @@ REGISTRY_IMAGE = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(if $(DOCKER_USER
 PORT ?= 8080
 HOST_PORT ?= $(PORT)
 ENV_FILE ?= .env
+
+# ------------------------------------------------------------------------------
+# Dockerfile Selection Configuration
+# ------------------------------------------------------------------------------
+# DOCKERFILE: Path to Dockerfile (default: Dockerfile)
+# CONTEXT:    Build context directory (default: current directory)
+# TARGET:     Multi-stage build target (optional)
+# WORKDIR:    Working directory for build (default: current directory)
+#
+# Examples:
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.static-apps CONTEXT=./fastify-apps
+# ------------------------------------------------------------------------------
 DOCKERFILE ?= Dockerfile
+CONTEXT ?= .
+TARGET ?=
+WORKDIR ?= $(shell pwd)
 
 # Build Configuration
 BUILD_ARGS ?=
 DOCKER_BUILD_OPTS ?=
 DOCKER_RUN_OPTS ?=
+
+# NPM/Node Registry for build (passed as build args)
+NPM_REGISTRY ?= https://registry.npmjs.org/
+NPM_TOKEN ?=
 
 # Python/Pip Registry for build (passed as build args)
 PYTHON_REGISTRY_URL ?= https://pypi.org/simple
@@ -75,32 +105,35 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Quick Commands:$(RESET)"
-	@echo "  make -f Makefile.docker build                    # Build image"
+	@echo "  make -f Makefile.docker build                    # Build default image"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres"
 	@echo "  make -f Makefile.docker run                      # Run container"
 	@echo "  make -f Makefile.docker stop                     # Stop container"
 	@echo "  make -f Makefile.docker logs                     # View logs"
-	@echo "  make -f Makefile.docker shell                    # Open shell"
-	@echo "  make -f Makefile.docker ci                       # Run CI workflow"
+	@echo "  make -f Makefile.docker list-dockerfiles         # List available Dockerfiles"
 	@echo ""
-	@echo "$(BLUE)Development Workflow:$(RESET)"
-	@echo "  1. make -f Makefile.docker build                 # Build image"
-	@echo "  2. make -f Makefile.docker run                   # Run container"
-	@echo "  3. make -f Makefile.docker logs                  # Check logs"
-	@echo "  4. make -f Makefile.docker test                  # Run tests"
+	@echo "$(BLUE)Build Arguments:$(RESET)"
+	@echo "  DOCKERFILE        Dockerfile to use (default: Dockerfile)"
+	@echo "  CONTEXT           Build context directory (default: .)"
+	@echo "  TARGET            Multi-stage build target (optional)"
+	@echo "  IMAGE_NAME        Name for the built image"
+	@echo "  VERSION           Image version tag (default: latest)"
 	@echo ""
-	@echo "$(PURPLE)Configuration:$(RESET)"
+	@echo "$(PURPLE)Current Configuration:$(RESET)"
 	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
 	@echo "  VERSION           = $(VERSION)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
 	@echo "  CONTAINER_NAME    = $(CONTAINER_NAME)"
 	@echo "  PORT              = $(PORT)"
 	@echo "  HOST_PORT         = $(HOST_PORT)"
-	@echo "  REGISTRY_IMAGE    = $(REGISTRY_IMAGE)"
-	@echo "  PYTHON_REGISTRY   = $(PYTHON_REGISTRY_URL)"
 	@echo ""
-	@echo "$(PURPLE)Override Configuration:$(RESET)"
+	@echo "$(PURPLE)Override Examples:$(RESET)"
+	@echo "  DOCKERFILE=Dockerfile.fastify IMAGE_NAME=mta-fastify make -f Makefile.docker build"
+	@echo "  DOCKERFILE=Dockerfile.database TARGET=postgres make -f Makefile.docker build"
 	@echo "  VERSION=v1.0.0 make -f Makefile.docker build"
-	@echo "  HOST_PORT=9090 make -f Makefile.docker run"
-	@echo "  DOCKER_REGISTRY=registry.example.com make -f Makefile.docker push"
 	@echo ""
 
 # ------------------------------------------------------------------------------
@@ -113,39 +146,49 @@ build: ## Build Docker image
 	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
 	@echo "$(BLUE)Image: $(IMAGE_NAME):$(VERSION)$(RESET)"
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE)$(RESET)"
+	@echo "$(BLUE)Context: $(CONTEXT)$(RESET)"
+	$(if $(TARGET),@echo "$(BLUE)Target: $(TARGET)$(RESET)",)
 	@docker build \
 		$(DOCKER_BUILD_OPTS) \
 		$(BUILD_ARGS) \
 		--platform linux/amd64 \
+		$(if $(TARGET),--target $(TARGET),) \
 		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
 		--build-arg PYPI_HOST=$(PYPI_HOST) \
 		--build-arg CA_CERT_PATH=$(CA_CERT) \
 		--build-arg HTTP_PROXY=$(HTTP_PROXY) \
 		--build-arg HTTPS_PROXY=$(HTTPS_PROXY) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
 		--build-arg MTA_ENV=production \
 		-t $(IMAGE_NAME):$(VERSION) \
 		-t $(IMAGE_NAME):latest \
 		-f $(DOCKERFILE) \
-		.
+		$(CONTEXT)
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 	@echo ""
-	@make -f Makefile.docker image-info
+	@make -f Makefile.docker image-info IMAGE_NAME=$(IMAGE_NAME)
 
 build-no-cache: ## Build without cache
 	@echo "$(CYAN)Building Docker image (no cache)...$(RESET)"
 	@echo "$(BLUE)Stopping existing container if running...$(RESET)"
 	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
 	@docker build \
 		$(DOCKER_BUILD_OPTS) \
 		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
 		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
 		--build-arg MTA_ENV=production \
 		--no-cache \
 		-t $(IMAGE_NAME):$(VERSION) \
 		-t $(IMAGE_NAME):latest \
 		-f $(DOCKERFILE) \
-		.
+		$(CONTEXT)
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 
 build-verbose: ## Build with verbose output
@@ -153,28 +196,36 @@ build-verbose: ## Build with verbose output
 	@echo "$(BLUE)Stopping existing container if running...$(RESET)"
 	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
 	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
 	@docker build \
 		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
 		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
 		--build-arg MTA_ENV=production \
 		-t $(IMAGE_NAME):$(VERSION) \
 		-t $(IMAGE_NAME):latest \
 		-f $(DOCKERFILE) \
-		.
+		$(CONTEXT)
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 
 build-multi-arch: ## Build multi-architecture image (arm64/amd64)
 	@echo "$(CYAN)Building multi-architecture image...$(RESET)"
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
 	@docker buildx build \
 		$(DOCKER_BUILD_OPTS) \
 		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
 		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
 		--build-arg MTA_ENV=production \
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE_NAME):$(VERSION) \
 		-t $(IMAGE_NAME):latest \
 		-f $(DOCKERFILE) \
-		.
+		$(CONTEXT)
 	@echo "$(GREEN)✓ Multi-arch build complete$(RESET)"
 
 rebuild: clean-image build ## Clean and rebuild image
@@ -815,24 +866,91 @@ disk-usage: ## Show Docker disk usage
 
 config-show: ## Show current configuration
 	@echo "$(CYAN)Docker Configuration:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Build Settings:$(RESET)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
+	@echo "  WORKDIR           = $(WORKDIR)"
+	@echo ""
+	@echo "$(BLUE)Image Settings:$(RESET)"
 	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
 	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
 	@echo "  VERSION           = $(VERSION)"
 	@echo "  CONTAINER_NAME    = $(CONTAINER_NAME)"
+	@echo ""
+	@echo "$(BLUE)Container Settings:$(RESET)"
 	@echo "  PORT              = $(PORT)"
 	@echo "  HOST_PORT         = $(HOST_PORT)"
-	@echo "  DOCKERFILE        = $(DOCKERFILE)"
 	@echo "  ENV_FILE          = $(ENV_FILE)"
+	@echo ""
+	@echo "$(BLUE)Registry Settings:$(RESET)"
 	@echo "  DOCKER_REGISTRY   = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY),not set)"
 	@echo "  DOCKER_USERNAME   = $(if $(DOCKER_USERNAME),$(DOCKER_USERNAME),not set)"
 	@echo "  REGISTRY_IMAGE    = $(REGISTRY_IMAGE)"
+	@echo ""
+	@echo "$(BLUE)Build Args (Python):$(RESET)"
 	@echo "  PYTHON_REGISTRY   = $(PYTHON_REGISTRY_URL)"
+	@echo "  PYPI_HOST         = $(PYPI_HOST)"
+	@echo ""
+	@echo "$(BLUE)Build Args (NPM):$(RESET)"
+	@echo "  NPM_REGISTRY      = $(NPM_REGISTRY)"
 
 validate: ## Validate Dockerfile
 	@echo "$(CYAN)Validating Dockerfile...$(RESET)"
-	@docker build --check -f $(DOCKERFILE) . 2>/dev/null && \
+	@docker build --check -f $(DOCKERFILE) $(CONTEXT) 2>/dev/null && \
 		echo "$(GREEN)✓ Dockerfile is valid$(RESET)" || \
 		echo "$(YELLOW)⚠ Validation not supported in this Docker version$(RESET)"
+
+list-dockerfiles: ## List all available Dockerfiles in root directory
+	@echo "$(CYAN)Available Dockerfiles:$(RESET)"
+	@echo ""
+	@for f in Dockerfile Dockerfile.*; do \
+		if [ -f "$$f" ]; then \
+			stages=$$(grep -E '^FROM.*AS' "$$f" 2>/dev/null | sed 's/.*AS /  - /' || true); \
+			if [ -n "$$stages" ]; then \
+				echo "$(GREEN)$$f$(RESET) (multi-stage)"; \
+				echo "$$stages"; \
+			else \
+				echo "$(GREEN)$$f$(RESET)"; \
+			fi; \
+		fi; \
+	done
+	@echo ""
+	@echo "$(BLUE)Usage:$(RESET)"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres"
+
+build-info: ## Show current build configuration
+	@echo "$(CYAN)Build Configuration:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Current Settings:$(RESET)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
+	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo ""
+	@echo "$(BLUE)Build Command Preview:$(RESET)"
+	@echo "  docker build \\"
+	@echo "    $(if $(TARGET),--target $(TARGET) \\,)"
+	@echo "    -t $(IMAGE_NAME):$(VERSION) \\"
+	@echo "    -f $(DOCKERFILE) \\"
+	@echo "    $(CONTEXT)"
+	@echo ""
+	@if [ -f "$(DOCKERFILE)" ]; then \
+		echo "$(BLUE)Dockerfile Info ($(DOCKERFILE)):$(RESET)"; \
+		echo "  Base images:"; \
+		grep -E '^FROM' "$(DOCKERFILE)" | sed 's/^/    /'; \
+		echo ""; \
+		stages=$$(grep -E '^FROM.*AS' "$(DOCKERFILE)" 2>/dev/null | sed 's/.*AS //' || true); \
+		if [ -n "$$stages" ]; then \
+			echo "  Available targets:"; \
+			echo "$$stages" | sed 's/^/    - /'; \
+		fi; \
+	else \
+		echo "$(YELLOW)⚠ Dockerfile not found: $(DOCKERFILE)$(RESET)"; \
+	fi
 
 export: ## Export container as tar (use FILE=output.tar)
 	@if [ -z "$(FILE)" ]; then \

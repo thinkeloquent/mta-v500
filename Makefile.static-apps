@@ -153,56 +153,32 @@ help: ## Show this help message with all available targets
 	@echo ""
 
 # ------------------------------------------------------------------------------
-# Build Automation
+# Build Automation (delegates to Makefile.docker)
 # ------------------------------------------------------------------------------
 
 build: ## Build static artifact image
 	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
 	@echo "$(CYAN)Building Static Artifact$(RESET)"
 	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
-	@echo "$(BLUE)Configuration:$(RESET)"
-	@echo "  Image: $(IMAGE_NAME):$(VERSION)"
-	@echo "  Platform: $(DOCKER_PLATFORM)"
-	$(if $(VITE_BACKEND_API_DOMAIN),@echo "  API Domain: $(VITE_BACKEND_API_DOMAIN)",)
-	@echo ""
-	@docker build \
-		$(DOCKER_BUILD_OPTS) \
-		$(BUILD_ARGS) \
-		--platform $(DOCKER_PLATFORM) \
-		$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),) \
-		--target static-artifact \
-		-t $(IMAGE_NAME):$(VERSION) \
-		-t $(IMAGE_NAME):latest \
-		-f $(DOCKERFILE) \
-		.
-	@echo ""
-	@echo "$(GREEN)✓ Build complete$(RESET)"
+	@$(MAKE) -f Makefile.docker build \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
 
 build-no-cache: ## Build artifact without using Docker cache
-	@echo "$(CYAN)Building Static Artifact (no cache)...$(RESET)"
-	@docker build \
-		--no-cache \
-		--platform $(DOCKER_PLATFORM) \
-		$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),) \
-		--target static-artifact \
-		-t $(IMAGE_NAME):$(VERSION) \
-		-t $(IMAGE_NAME):latest \
-		-f $(DOCKERFILE) \
-		.
-	@echo "$(GREEN)✓ Build complete$(RESET)"
+	@$(MAKE) -f Makefile.docker build-no-cache \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
 
 build-verbose: ## Build artifact with verbose output and progress
-	@echo "$(CYAN)Building Static Artifact (verbose)...$(RESET)"
-	@docker build \
-		--progress=plain \
-		--platform $(DOCKER_PLATFORM) \
-		$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),) \
-		--target static-artifact \
-		-t $(IMAGE_NAME):$(VERSION) \
-		-t $(IMAGE_NAME):latest \
-		-f $(DOCKERFILE) \
-		.
-	@echo "$(GREEN)✓ Build complete$(RESET)"
+	@$(MAKE) -f Makefile.docker build-verbose \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
 
 rebuild: clean-image build ## Clean and rebuild artifact
 
@@ -375,70 +351,50 @@ extract: ## Extract static files from artifact to local directory
 	@find $(EXTRACT_DIR) -name "index.html" | sed 's/^/  /'
 
 # ------------------------------------------------------------------------------
-# Registry Operations
+# Registry Operations (delegates to Makefile.docker)
 # ------------------------------------------------------------------------------
 
 tag: ## Tag image for registry push
-	@echo "$(CYAN)Tagging image for registry...$(RESET)"
-	@if [ -z "$(DOCKER_REGISTRY)" ] && [ -z "$(DOCKER_USERNAME)" ]; then \
-		echo "$(RED)✗ DOCKER_REGISTRY or DOCKER_USERNAME must be set$(RESET)"; \
-		echo "$(YELLOW)Usage: make tag DOCKER_REGISTRY=ghcr.io DOCKER_USERNAME=myorg$(RESET)"; \
-		exit 1; \
-	fi
-	@docker tag $(IMAGE_NAME):$(VERSION) $(REGISTRY_IMAGE):$(VERSION)
-	@docker tag $(IMAGE_NAME):$(VERSION) $(REGISTRY_IMAGE):latest
-	@echo "$(GREEN)✓ Tagged as:$(RESET)"
-	@echo "  - $(REGISTRY_IMAGE):$(VERSION)"
-	@echo "  - $(REGISTRY_IMAGE):latest"
+	@$(MAKE) -f Makefile.docker tag \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
 
-push: tag ## Push artifact image to registry
-	@echo "$(CYAN)Pushing to registry...$(RESET)"
-	@docker push $(REGISTRY_IMAGE):$(VERSION)
-	@docker push $(REGISTRY_IMAGE):latest
-	@echo "$(GREEN)✓ Pushed to registry$(RESET)"
+push: ## Push artifact image to registry
+	@$(MAKE) -f Makefile.docker push \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
 
 pull: ## Pull artifact image from registry
-	@echo "$(CYAN)Pulling from registry...$(RESET)"
-	@if [ -z "$(DOCKER_REGISTRY)" ] && [ -z "$(DOCKER_USERNAME)" ]; then \
-		echo "$(RED)✗ DOCKER_REGISTRY or DOCKER_USERNAME must be set$(RESET)"; \
-		exit 1; \
-	fi
-	@docker pull $(REGISTRY_IMAGE):$(VERSION)
-	@echo "$(GREEN)✓ Pulled from registry$(RESET)"
+	@$(MAKE) -f Makefile.docker pull \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
 
 login: ## Login to Docker registry
-	@echo "$(CYAN)Logging in to registry...$(RESET)"
-	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
-		echo "$(RED)✗ DOCKER_REGISTRY must be set$(RESET)"; \
-		exit 1; \
-	fi
-	@docker login $(DOCKER_REGISTRY)
-	@echo "$(GREEN)✓ Logged in$(RESET)"
+	@$(MAKE) -f Makefile.docker login \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
 
 logout: ## Logout from Docker registry
-	@echo "$(CYAN)Logging out from registry...$(RESET)"
-	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
-		echo "$(RED)✗ DOCKER_REGISTRY must be set$(RESET)"; \
-		exit 1; \
-	fi
-	@docker logout $(DOCKER_REGISTRY)
-	@echo "$(GREEN)✓ Logged out$(RESET)"
+	@$(MAKE) -f Makefile.docker logout \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY)
 
 # ------------------------------------------------------------------------------
 # Docker Clean Operations
 # ------------------------------------------------------------------------------
 
-clean: ## Remove artifact containers
-	@echo "$(YELLOW)Cleaning containers...$(RESET)"
+clean: ## Remove artifact containers (temp containers for verify/extract)
+	@echo "$(YELLOW)Cleaning static-apps containers...$(RESET)"
 	@docker rm -f $(ARTIFACT_NAME)-verify-tmp 2>/dev/null || true
 	@docker rm -f $(ARTIFACT_NAME)-extract-tmp 2>/dev/null || true
+	@docker rm -f $(ARTIFACT_NAME)-test-extract 2>/dev/null || true
 	@docker rm -f $(TEST_CONTAINER_NAME) 2>/dev/null || true
 	@echo "$(GREEN)✓ Containers removed$(RESET)"
 
 clean-image: ## Remove artifact images
-	@echo "$(YELLOW)Removing artifact images...$(RESET)"
-	@docker rmi -f $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
-	@docker rmi -f $(IMAGE_NAME):latest 2>/dev/null || true
+	@$(MAKE) -f Makefile.docker clean-image IMAGE_NAME=$(IMAGE_NAME)
 	@docker rmi -f $(TEST_IMAGE_NAME):latest 2>/dev/null || true
 	@echo "$(GREEN)✓ Images removed$(RESET)"
 
@@ -452,16 +408,8 @@ clean-extracted: ## Clean extracted files
 clean-all: clean clean-image clean-extracted clean-node-modules ## Full cleanup (images, containers, extracted files, node_modules)
 	@echo "$(GREEN)✓✓✓ Full cleanup complete$(RESET)"
 
-prune: ## Prune Docker system (REQUIRES FORCE=1 for safety)
-	@if [ "$(FORCE)" != "1" ]; then \
-		echo "$(RED)⚠ DESTRUCTIVE OPERATION$(RESET)"; \
-		echo "$(YELLOW)This will remove all unused Docker images, containers, and build cache$(RESET)"; \
-		echo "$(YELLOW)Use: make -f Makefile.static-apps prune FORCE=1$(RESET)"; \
-		exit 1; \
-	fi
-	@echo "$(YELLOW)Pruning Docker system...$(RESET)"
-	@docker system prune -af
-	@echo "$(GREEN)✓ Docker system pruned$(RESET)"
+prune: ## Prune Docker system (delegates to Makefile.docker)
+	@$(MAKE) -f Makefile.docker prune FORCE=$(FORCE)
 
 # ------------------------------------------------------------------------------
 # CI/CD Workflows

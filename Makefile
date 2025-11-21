@@ -2,13 +2,15 @@
 # Extends: Makefile.fastapi, Makefile.fastify, Makefile.vite, Makefile.database
 # Implements standard CI targets: install, build, test, run, clean
 
-.PHONY: install build test run clean help
+.PHONY: setup install build test run clean help
 
 .DEFAULT_GOAL := help
 
 # =============================================================================
 # CI Targets - Orchestrate all subsystems
 # =============================================================================
+
+setup: install ## Alias for install (full monorepo setup)
 
 install:
 	@echo "═══════════════════════════════════════════════════════════════"
@@ -138,8 +140,10 @@ help:
 	@echo "  MTA-V500 Makefile - CI Orchestrator"
 	@echo "═══════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "Standard CI Targets (apps only - no database):"
+	@echo "Setup & CI Targets (apps only - no database):"
+	@echo "  make setup      - Full monorepo setup (alias for install)"
 	@echo "  make install    - Install dependencies (Vite + FastAPI + Fastify)"
+	@echo "  make dev        - Start dev servers (Fastify + FastAPI + Vite)"
 	@echo "  make build      - Build all components (Vite + FastAPI + Fastify)"
 	@echo "  make test       - Run all tests (Vite + FastAPI + Fastify)"
 	@echo "  make run        - Show startup instructions"
