@@ -7,97 +7,48 @@
 import { Readable } from 'node:stream';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createDataStream, streamText } from 'ai';
+import {
+  PROVIDERS,
+  getApiKey,
+  getProviderForModel,
+  resolveModelFromRequest,
+  validateApiKey,
+} from './config.mjs';
 
-// Initialize all AI providers using OpenAI-compatible endpoints
-const openai = createOpenAICompatible({
-  name: 'openai',
-  baseURL: 'https://api.openai.com/v1',
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const google = createOpenAICompatible({
-  name: 'google',
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
-
-const anthropic = createOpenAICompatible({
-  name: 'anthropic',
-  baseURL: 'https://api.anthropic.com/v1',
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// =============================================================================
+// Provider Initialization
+// =============================================================================
 
 /**
- * Maps model names to their respective providers
- * @param {string} modelName - The model identifier (e.g., 'gpt-4o', 'gemini-1.5-pro', 'claude-sonnet-4')
- * @returns {{ provider: object, name: string }} Provider instance and normalized model name
+ * Lazily initialized provider instances
+ * Providers are created on first use to avoid errors when API keys are not set
  */
-function getProviderForModel(modelName) {
-  const model = modelName.toLowerCase();
-
-  // OpenAI models: gpt-*, o1-*, etc.
-  if (model.startsWith('gpt-') || model.startsWith('o1-') || model.startsWith('text-')) {
-    return { provider: openai, name: modelName, providerName: 'openai' };
-  }
-
-  // Google/Gemini models: gemini-*, etc.
-  if (model.startsWith('gemini-')) {
-    return { provider: google, name: modelName, providerName: 'google' };
-  }
-
-  // Anthropic models: claude-*, etc.
-  if (model.startsWith('claude-')) {
-    return { provider: anthropic, name: modelName, providerName: 'anthropic' };
-  }
-
-  throw new Error(`Unknown model: ${modelName}. Supported prefixes: gpt-, o1-, gemini-, claude-`);
-}
+const providerInstances = {};
 
 /**
- * Validates that the required API key exists for the selected provider
+ * Gets or creates a provider instance
  * @param {string} providerName - The provider name ('openai', 'google', 'anthropic')
- * @throws {Error} If API key is missing
+ * @returns {object} The OpenAI-compatible provider instance
  */
-function validateApiKey(providerName) {
-  const keyMap = {
-    openai: 'OPENAI_API_KEY',
-    google: 'GOOGLE_GENERATIVE_AI_API_KEY',
-    anthropic: 'ANTHROPIC_API_KEY',
-  };
+function getProviderInstance(providerName) {
+  if (!providerInstances[providerName]) {
+    const config = PROVIDERS[providerName];
+    if (!config) {
+      throw new Error(`Unknown provider: ${providerName}`);
+    }
 
-  const envVarName = keyMap[providerName];
-  if (!process.env[envVarName]) {
-    throw new Error(
-      `Missing API key: ${envVarName} environment variable is required for ${providerName} provider`,
-    );
+    providerInstances[providerName] = createOpenAICompatible({
+      name: config.name,
+      baseURL: config.baseURL,
+      apiKey: getApiKey(providerName),
+    });
   }
+  return providerInstances[providerName];
 }
 
-/**
- * Resolves the model to use based on priority:
- * 1. X-AI-Model request header
- * 2. APP_AI_INIT_CONFIG_DEFAULT_CHAT_MODEL environment variable
- * 3. Default: gpt-4o
- *
- * @param {object} request - Fastify request object
- * @returns {string} The resolved model name
- */
-function resolveModel(request) {
-  // Priority 1: Request header
-  const headerModel = request.headers['x-ai-model'];
-  if (headerModel) {
-    return headerModel;
-  }
-
-  // Priority 2: Environment variable
-  const envModel = process.env.APP_AI_INIT_CONFIG_DEFAULT_CHAT_MODEL;
-  if (envModel) {
-    return envModel;
-  }
-
-  // Priority 3: Default
-  return 'gpt-4o';
-}
+// =============================================================================
+// Model Resolution
+// =============================================================================
 
 /**
  * Default model resolver - gets the AI model instance for the request
@@ -108,14 +59,15 @@ function resolveModel(request) {
  * @throws {Error} If model is unknown or API key is missing
  */
 export function defaultGetModelForRequest(request) {
-  const modelName = resolveModel(request);
-  const { provider, name, providerName } = getProviderForModel(modelName);
+  const modelName = resolveModelFromRequest(request);
+  const { providerName } = getProviderForModel(modelName);
 
   // Validate API key exists for this provider
   validateApiKey(providerName);
 
-  // Use chatModel for OpenAI-compatible providers
-  return provider.chatModel(name);
+  // Get provider instance and return chat model
+  const provider = getProviderInstance(providerName);
+  return provider.chatModel(modelName);
 }
 
 /**

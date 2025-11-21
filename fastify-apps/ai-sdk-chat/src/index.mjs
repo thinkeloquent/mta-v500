@@ -6,6 +6,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyPlugin from 'fastify-plugin';
+import { logConfig } from './config.mjs';
 import {
   createCustomDataStreamHandler,
   createCustomDataStreamPromptHandler,
@@ -33,8 +34,14 @@ const __dirname = dirname(__filename);
 async function aiSdkChatPlugin(fastify, _options) {
   fastify.log.info('→ Initializing AI SDK Chat plugin...');
 
+  // Log configuration
+  logConfig(fastify.log);
+
   // Use custom model resolver if provided, otherwise use default
   const getModelForRequest = _options.getModelForRequest || defaultGetModelForRequest;
+  if (_options.getModelForRequest) {
+    fastify.log.info('  Using custom model resolver');
+  }
 
   // Create handlers with the model resolver
   const handleDataStream = createDataStreamHandler(getModelForRequest);
@@ -301,3 +308,18 @@ export { aiSdkChatPlugin };
 
 // Re-export the default model resolver for custom implementations
 export { defaultGetModelForRequest } from './stream-protocol.mjs';
+
+// Re-export config utilities for custom implementations
+export {
+  DEFAULT_MODEL,
+  ENV_KEYS,
+  HEADERS,
+  PROVIDERS,
+  getApiKey,
+  getConfig,
+  getDefaultModel,
+  getProviderForModel,
+  logConfig,
+  resolveModelFromRequest,
+  validateApiKey,
+} from './config.mjs';
