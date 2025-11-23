@@ -222,10 +222,15 @@ EXPOSE 8080
 # Remove existing directory first (from COPY . .) then create symlink
 RUN rm -rf /app/fastapi-apps/app/static && ln -sf /app/static /app/fastapi-apps/app/static
 
-# Change to app directory where main.py exists
-WORKDIR /app/fastapi-apps/app
+# Keep working directory at /app (project root)
+# This ensures all relative paths work correctly
+WORKDIR /app
+
+# Add fastapi-apps/app to PYTHONPATH so relative imports like 'from core.cors' work
+# This allows main.py to import modules without full package paths
+ENV PYTHONPATH="/app/fastapi-apps/app:${PYTHONPATH}"
 
 # Run with hot-reload enabled for development
 # For production, remove --reload flag
-# Note: Uses main:app because we're now in the app directory
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Note: Uses fastapi-apps.app.main:app for the full module path from project root
+CMD ["uvicorn", "fastapi-apps.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
