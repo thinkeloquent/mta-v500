@@ -4,8 +4,8 @@
 # Stage 1: Builder
 FROM node:22-slim AS builder
 
-# Upgrade npm to latest for lockfile compatibility 00
-RUN npm install -g npm@latest
+# Install pnpm and build tools globally
+RUN npm install -g pnpm@latest
 RUN npm install -g typescript@latest
 RUN npm install -g rollup@latest
 RUN npm install -g tsup@latest
@@ -13,7 +13,7 @@ RUN npm install -g tsup@latest
 WORKDIR /app
 
 # Copy package files and workspace config
-COPY package.json package-lock.json* tsconfig*.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig*.json ./
 
 # Copy common configs & schemas
 COPY common/ ./common/
@@ -28,70 +28,23 @@ COPY fastify-apps/ ./fastify-apps/
 COPY .bin/ ./.bin/
 COPY scripts/ ./scripts/
 
-# Clean incomplete platform-specific entries from lockfile, then install
-RUN node .bin/npm-pkg-lock-platform.mjs && npm install
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
 
 # Generate types from common schemas
 RUN chmod +x ./common/scripts/generate-types.sh && \
     ./common/scripts/generate-types.sh || true
 
-# Build packages in explicit dependency order
-# Tier 1: Base packages (no @internal dependencies)
-RUN npm run --workspace=@internal/config-loader build && \
-    npm run --workspace=@internal/core-exceptions build && \
-    npm run --workspace=@internal/core-decorator-registry build && \
-    npm run --workspace=@internal/core-no-cache build && \
-    npm run --workspace=@internal/core-plugin-logger build && \
-    npm run --workspace=@internal/core-route-logger build && \
-    npm run --workspace=@internal/core-prisma-orchestrator build && \
-    npm run --workspace=@internal/ui-components build && \
-    npm run --workspace=@internal/utils build && \
-    npm run --workspace=@internal/vault-secret-hydrator build
-
-# Tier 2: Packages that depend on tier 1
-RUN npm run --workspace=@internal/core-configure build && \
-    npm run --workspace=@internal/core-prisma-utils build && \
-    npm run --workspace=@internal/core-spa-app build && \
-    npm run --workspace=@internal/core-static-app build
-
 # Tier 3: Packages that depend on tier 1 & 2
-RUN npm run --workspace=@internal/skeleton build
+RUN mkdir -p /static/app
+RUN npm run build
 
-# Build all frontends (fastapi-apps/*/frontend workspaces)
-RUN for frontend in /app/fastapi-apps/*/frontend; do \
-    if [ -d "$frontend" ] && [ -f "$frontend/package.json" ]; then \
-    app_name=$(basename $(dirname "$frontend")); \
-    echo "Building frontend for $app_name..."; \
-    (cd "$frontend" && npm run build) || echo "No build script for $app_name frontend"; \
-    fi; \
-    done
+# Build all fastify-apps frontends using pnpm workspaces
+# RUN pnpm --filter "./fastify-apps/*/frontend" run build
 
-# Organize built files into static directory structure
+# Copy built frontends to static directory (with error handling)
 # Pattern: fastify-apps/{app_name}/frontend/dist → /static/app/{app_name}/frontend/dist
-# Preserve snake_case naming (no conversion to kebab-case)
-RUN mkdir -p /static/app && \
-    echo "Organizing built frontend files..." && \
-    for frontend_dir in /app/fastify-apps/*/frontend; do \
-    if [ -d "$frontend_dir/dist" ]; then \
-    app_name=$(basename $(dirname "$frontend_dir")); \
-    dest_dir="/static/app/$app_name/frontend"; \
-    echo "Copying $app_name: $frontend_dir/dist → $dest_dir/dist"; \
-    mkdir -p "$dest_dir"; \
-    cp -r "$frontend_dir/dist" "$dest_dir/"; \
-    else \
-    app_name=$(basename $(dirname "$frontend_dir")); \
-    echo "Warning: No dist folder found for $app_name"; \
-    fi; \
-    done && \
-    echo "Static files organized successfully!"
-
-# Verify the build output
-RUN echo "Build verification:" && \
-    find /static -type f -name "index.html" || echo "No index.html files found" && \
-    echo "Total files:" && \
-    find /static -type f | wc -l && \
-    echo "Total size:" && \
-    du -sh /static
+RUN node .bin/copy-frontend-dist.mjs /app/fastify-apps /static/app
 
 # Stage 2: Runtime
 FROM node:22-slim AS runtime
