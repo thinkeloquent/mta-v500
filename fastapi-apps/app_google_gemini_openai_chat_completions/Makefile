@@ -1,8 +1,8 @@
-.PHONY: help install install-dev venv run run-dev test test-cov lint format type-check quality migrate migrate-upgrade migrate-downgrade migrate-downgrade-to migrate-create clean clean-all ci
+.PHONY: help setup install install-dev install-local venv run run-dev test test-cov lint format type-check quality migrate migrate-upgrade migrate-downgrade migrate-downgrade-to migrate-create clean clean-all ci
 
 # Python and virtual environment configuration
 PYTHON := python3
-VENV := venv
+VENV := ../../.venv
 VENV_BIN := $(VENV)/bin
 PYTHON_VENV := $(VENV_BIN)/python
 PIP := $(VENV_BIN)/pip
@@ -20,14 +20,19 @@ APP_MODULE := app.main:app
 HOST := 0.0.0.0
 PORT := 8080
 
+# Local packages directory
+LOCAL_PACKAGES := ../../packages-py
+
 # Default target
 help:
 	@echo "App Google Gemini Openai Chat Completions Backend - Makefile Commands"
 	@echo ""
 	@echo "Setup & Installation:"
+	@echo "  make setup          - Full setup: clean, create venv, install all deps"
 	@echo "  make venv           - Create virtual environment"
 	@echo "  make install        - Install production dependencies"
 	@echo "  make install-dev    - Install development dependencies"
+	@echo "  make install-local  - Install local monorepo packages (editable)"
 	@echo ""
 	@echo "Running:"
 	@echo "  make run            - Run with Gunicorn (production)"
@@ -60,22 +65,47 @@ help:
 # Create virtual environment
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
-		echo "Creating virtual environment..."; \
+		echo "Creating virtual environment at $(VENV)..."; \
 		$(PYTHON) -m venv $(VENV); \
 		echo "Virtual environment created."; \
 	else \
-		echo "Virtual environment already exists."; \
+		echo "Virtual environment already exists at $(VENV)."; \
 	fi
 
+# Full setup: delete venv, recreate, install all dependencies
+setup:
+	@echo "Running full setup..."
+	@echo "Removing existing virtual environment..."
+	rm -rf $(VENV)
+	@echo "Creating virtual environment at $(VENV)..."
+	$(PYTHON) -m venv $(VENV)
+	@echo "Activating and installing dependencies..."
+	. $(VENV_BIN)/activate && \
+		pip install --upgrade pip && \
+		pip install -r requirements.txt && \
+		pip install -r requirements-dev.txt && \
+		echo "Installing local monorepo packages..." && \
+		pip install -e $(LOCAL_PACKAGES)/fetch_proxy_dispatcher && \
+		pip install -e $(LOCAL_PACKAGES)/google_gemini_openai_client
+	@echo ""
+	@echo "Setup complete! Run 'make run-dev' to start the development server."
+
+# Install local monorepo packages (editable mode)
+install-local: venv
+	@echo "Installing local monorepo packages..."
+	$(PIP) install -e $(LOCAL_PACKAGES)/fetch_proxy_dispatcher
+	$(PIP) install -e $(LOCAL_PACKAGES)/google_gemini_openai_client
+	@echo "Local packages installed."
+
 # Install production dependencies
-install: venv
+install: venv install-local
 	@echo "Installing production dependencies..."
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 	@echo "Production dependencies installed."
 
 # Install development dependencies
-install-dev: venv
+install-dev: venv install-local
 	@echo "Installing development dependencies..."
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements-dev.txt

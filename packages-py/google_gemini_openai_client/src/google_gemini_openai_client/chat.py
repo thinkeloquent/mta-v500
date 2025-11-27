@@ -21,8 +21,8 @@ from .models import (
     JsonSchema,
     StructuredOutputSchema,
     StructuredOutputResult,
-    DEFAULT_MODEL,
 )
+from .config import DEFAULT_MODEL
 
 
 def chat_completion(

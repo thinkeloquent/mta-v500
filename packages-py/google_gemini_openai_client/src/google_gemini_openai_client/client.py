@@ -6,16 +6,16 @@ Creates configured httpx clients for the Gemini API.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
-from .models import (
-    ClientConfig,
+from .models import ClientConfig
+from .config import (
     DEFAULT_BASE_URL,
     DEFAULT_TIMEOUT,
     DEFAULT_MAX_CONNECTIONS,
+    get_api_key,
 )
 
 
@@ -63,7 +63,7 @@ def create_client(
         >>> dispatcher = get_proxy_dispatcher(async_client=False)
         >>> client = create_client(proxy_dispatcher=dispatcher.client)
     """
-    resolved_api_key = api_key or os.environ.get("GEMINI_API_KEY")
+    resolved_api_key = get_api_key(api_key)
 
     if not resolved_api_key:
         raise ValueError(
@@ -150,7 +150,7 @@ async def create_async_client(
         >>> async with await create_async_client() as client:
         ...     response = await chat_completion_async(client, messages=[...])
     """
-    resolved_api_key = api_key or os.environ.get("GEMINI_API_KEY")
+    resolved_api_key = get_api_key(api_key)
 
     if not resolved_api_key:
         raise ValueError(
@@ -223,7 +223,7 @@ def get_client_config(
 
     Useful for inspecting configuration or passing to other functions.
     """
-    resolved_api_key = api_key or os.environ.get("GEMINI_API_KEY")
+    resolved_api_key = get_api_key(api_key)
 
     if not resolved_api_key:
         raise ValueError(

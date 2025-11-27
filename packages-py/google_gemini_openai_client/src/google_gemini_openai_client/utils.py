@@ -11,13 +11,11 @@ from datetime import datetime
 from typing import Any
 
 from .models import ChatCompletionResponse, Usage, StructuredOutputSchema
+from .config import SEPARATOR, THIN_SEPARATOR
 
 # =============================================================================
 # Logging Utilities
 # =============================================================================
-
-SEPARATOR = "=" * 60
-THIN_SEPARATOR = "-" * 60
 
 
 def log_progress(stage: str, message: str = "") -> None:

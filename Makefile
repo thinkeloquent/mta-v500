@@ -6,11 +6,39 @@
 
 .DEFAULT_GOAL := help
 
+# Python version (3.11 required - asyncpg doesn't support 3.13 yet)
+PYTHON := python3.11
+
+# Virtual environment path
+VENV := .venv
+
 # =============================================================================
 # CI Targets - Orchestrate all subsystems
 # =============================================================================
 
-setup: install ## Alias for install (full monorepo setup)
+setup: ## Full setup: delete .venv, recreate, install all dependencies
+	@echo "═══════════════════════════════════════════════════════════════"
+	@echo "  MTA-V500 - Full Setup (clean .venv + install)"
+	@echo "═══════════════════════════════════════════════════════════════"
+	@echo ""
+	@if ! command -v $(PYTHON) &> /dev/null; then \
+		echo "Error: $(PYTHON) not found. Please install Python 3.11"; \
+		echo "  brew install python@3.11"; \
+		exit 1; \
+	fi
+	@echo "Using Python: $$($(PYTHON) --version)"
+	@echo ""
+	@echo "Removing existing virtual environment..."
+	@rm -rf $(VENV)
+	@echo "Creating fresh virtual environment..."
+	@$(PYTHON) -m venv $(VENV)
+	@echo "Virtual environment created at $(VENV)"
+	@echo ""
+	@. $(VENV)/bin/activate && $(MAKE) install
+	@echo ""
+	@echo "═══════════════════════════════════════════════════════════════"
+	@echo "✓ Setup complete! Run 'make dev' to start development server."
+	@echo "═══════════════════════════════════════════════════════════════"
 
 install:
 	@echo "═══════════════════════════════════════════════════════════════"

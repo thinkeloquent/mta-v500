@@ -68,6 +68,13 @@ fi
 echo "Installing main application dependencies..."
 poetry install --no-interaction --no-ansi --no-root
 
+# Install local packages required by sub-apps
+echo ""
+echo "Installing local monorepo packages..."
+pip install -e packages-py/fetch_proxy_dispatcher
+pip install -e packages-py/google_gemini_openai_client
+echo "Local packages installed!"
+
 echo ""
 echo "Step 2: Setting up sub-applications..."
 echo "----------------------------------------"

@@ -113,14 +113,15 @@ app.add_middleware(
 )
 
 
+# Store proxy factory in app state immediately (for mounted sub-app usage)
+app.state.proxy_factory = proxy_factory
+
+
 @app.on_event("startup")
 async def startup_event():
     """
     Execute on application startup.
     """
-    # Store proxy factory in app state for routes to access
-    app.state.proxy_factory = proxy_factory
-
     print(f"{settings.APP_NAME} v{settings.APP_VERSION} starting...")
     print(f"Environment: {settings.ENVIRONMENT}")
     print(f"Database: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")

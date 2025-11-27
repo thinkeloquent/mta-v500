@@ -4,6 +4,7 @@
  */
 
 import type { ChatCompletionResponse, Usage } from './models.mjs';
+import { SEPARATOR, THIN_SEPARATOR } from './config.mjs';
 
 // =============================================================================
 // Logging Utilities
@@ -24,9 +25,6 @@ export function logProgress(stage: string, message: string = ''): void {
 // =============================================================================
 // Formatting Utilities
 // =============================================================================
-
-const SEPARATOR = '='.repeat(60);
-const THIN_SEPARATOR = '-'.repeat(60);
 
 /**
  * Formats and prints a chat completion response in a user-friendly way.

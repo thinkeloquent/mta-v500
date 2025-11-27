@@ -98,7 +98,12 @@ def get_gemini_client(request: Request) -> httpx.Client:
     if _gemini_client is None:
         proxy_factory = request.app.state.proxy_factory
         proxy_config = proxy_factory.get_proxy_config()
-        _gemini_client = create_client(**proxy_config)
+        # Extract only the params that create_client accepts
+        _gemini_client = create_client(
+            proxy=proxy_config.get("proxy"),
+            cert=proxy_config.get("cert"),
+            ca_bundle=proxy_config.get("verify") if isinstance(proxy_config.get("verify"), str) else None,
+        )
     return _gemini_client
 
 

@@ -187,11 +187,13 @@ export interface StructuredOutputResult<T = unknown> {
 }
 
 // =============================================================================
-// Constants
+// Constants (re-exported from config for backward compatibility)
 // =============================================================================
 
-export const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
-export const DEFAULT_MODEL = 'gemini-2.0-flash';
-export const DEFAULT_TIMEOUT = 60000; // 60 seconds
-export const DEFAULT_KEEP_ALIVE_TIMEOUT = 5000; // 5 seconds
-export const DEFAULT_MAX_CONNECTIONS = 10;
+export {
+  DEFAULT_BASE_URL,
+  DEFAULT_MODEL,
+  DEFAULT_TIMEOUT,
+  DEFAULT_KEEP_ALIVE_TIMEOUT,
+  DEFAULT_MAX_CONNECTIONS,
+} from './config.mjs';

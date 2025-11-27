@@ -15,7 +15,7 @@ import type {
   StructuredOutputResult,
   ResponseFormat,
 } from './models.mjs';
-import { DEFAULT_MODEL } from './models.mjs';
+import { DEFAULT_MODEL } from './config.mjs';
 
 /**
  * Performs a chat completion request.

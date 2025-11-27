@@ -53,11 +53,15 @@ export type {
   StructuredOutputResult,
 } from './models.mjs';
 
-// Constants
+// Config
 export {
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   DEFAULT_TIMEOUT,
   DEFAULT_KEEP_ALIVE_TIMEOUT,
   DEFAULT_MAX_CONNECTIONS,
-} from './models.mjs';
+  SEPARATOR,
+  THIN_SEPARATOR,
+  ENV_API_KEY,
+  getApiKey,
+} from './config.mjs';

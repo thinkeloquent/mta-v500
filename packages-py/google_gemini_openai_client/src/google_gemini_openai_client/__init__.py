@@ -80,14 +80,21 @@ from .utils import (
     assistant_message,
 )
 
-# Models
-from .models import (
-    # Constants
+# Config
+from .config import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT,
     DEFAULT_KEEP_ALIVE_TIMEOUT,
     DEFAULT_MAX_CONNECTIONS,
+    SEPARATOR,
+    THIN_SEPARATOR,
+    ENV_API_KEY,
+    get_api_key,
+)
+
+# Models
+from .models import (
     # Types
     MessageRole,
     ResponseFormatType,
@@ -127,12 +134,16 @@ __all__ = [
     "system_message",
     "user_message",
     "assistant_message",
-    # Constants
+    # Config
     "DEFAULT_BASE_URL",
     "DEFAULT_MODEL",
     "DEFAULT_TIMEOUT",
     "DEFAULT_KEEP_ALIVE_TIMEOUT",
     "DEFAULT_MAX_CONNECTIONS",
+    "SEPARATOR",
+    "THIN_SEPARATOR",
+    "ENV_API_KEY",
+    "get_api_key",
     # Types
     "MessageRole",
     "ResponseFormatType",

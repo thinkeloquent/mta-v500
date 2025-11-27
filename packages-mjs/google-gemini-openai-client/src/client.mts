@@ -12,7 +12,8 @@ import {
   DEFAULT_TIMEOUT,
   DEFAULT_KEEP_ALIVE_TIMEOUT,
   DEFAULT_MAX_CONNECTIONS,
-} from './models.mjs';
+  getApiKey,
+} from './config.mjs';
 
 /**
  * Creates a client configuration object with undici dispatcher.
@@ -35,7 +36,7 @@ import {
  * ```
  */
 export function createClient(options: ClientOptions = {}): ClientConfig {
-  const apiKey = options.apiKey || process.env.GEMINI_API_KEY;
+  const apiKey = getApiKey(options.apiKey);
 
   if (!apiKey) {
     throw new Error(
@@ -119,7 +120,7 @@ export function createClientWithDispatcher(
   options: Omit<ClientOptions, 'proxy' | 'cert' | 'caBundle'> = {},
   dispatcher: Dispatcher
 ): ClientConfig {
-  const apiKey = options.apiKey || process.env.GEMINI_API_KEY;
+  const apiKey = getApiKey(options.apiKey);
 
   if (!apiKey) {
     throw new Error(

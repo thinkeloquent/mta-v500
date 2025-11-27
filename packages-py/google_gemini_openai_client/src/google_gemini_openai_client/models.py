@@ -9,15 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-# =============================================================================
-# Constants
-# =============================================================================
-
-DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-DEFAULT_MODEL = "gemini-2.0-flash"
-DEFAULT_TIMEOUT = 60.0  # seconds
-DEFAULT_KEEP_ALIVE_TIMEOUT = 5.0  # seconds
-DEFAULT_MAX_CONNECTIONS = 10
+# Re-export constants from config for backward compatibility
+from .config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_MODEL,
+    DEFAULT_TIMEOUT,
+    DEFAULT_KEEP_ALIVE_TIMEOUT,
+    DEFAULT_MAX_CONNECTIONS,
+)
 
 # =============================================================================
 # Type Aliases
