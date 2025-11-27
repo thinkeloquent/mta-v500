@@ -157,6 +157,9 @@ const appOptions = {
   googleGeminiOpenaiChatCompletions: {
     // model: 'gemini-2.0-flash',  // Default model (optional)
     getApiKeyForRequest: getGeminiApiKeyForRequest, // Per-request API key resolver
+    // proxyFactory: null,  // Proxy factory instance (from @internal/fetch-proxy-dispatcher)
+    // proxyCert: null,     // Path to client certificate file
+    // proxyCaBundle: null, // Path to CA bundle file
   },
 };
 

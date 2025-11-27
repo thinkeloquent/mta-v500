@@ -20,10 +20,15 @@ Usage:
 import sys
 from pathlib import Path
 
-# Add parent to path for imports
+# Add parent to path for imports (fastapi-apps/)
 _parent_dir = str(Path(__file__).parent.parent)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
+
+# Add app directory for module imports (env_feature_flag, models, auth, etc.)
+_app_dir = str(Path(__file__).parent.parent / "app")
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
 
 from app.launch import (
     # Server lifecycle

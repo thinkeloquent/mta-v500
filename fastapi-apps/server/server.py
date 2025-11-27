@@ -14,6 +14,8 @@ Usage:
     python -m server.server
 """
 
+import os
+
 from . import initialize_app, start_server
 
 # =============================================================================
@@ -42,6 +44,9 @@ app_options = {
     "ai_sdk_chat": {},
     "google_gemini_openai_chat_completions": {
         "get_api_key_for_request": get_gemini_api_key_for_request,
+        # "proxy": None,     # Proxy URL (e.g., "http://proxy:8080")
+        # "cert": None,      # Path to client certificate file or tuple (cert, key)
+        # "ca_bundle": None, # Path to CA bundle file
     },
 }
 
