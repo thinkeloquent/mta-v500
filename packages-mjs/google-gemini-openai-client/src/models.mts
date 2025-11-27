@@ -10,6 +10,13 @@ import type { Agent, ProxyAgent, Dispatcher } from 'undici';
 // =============================================================================
 
 /**
+ * Function type for resolving API key per request.
+ * Receives the request object for context-aware token selection.
+ * Supports async operations for fetching tokens from external sources.
+ */
+export type ApiKeyResolver = (request: unknown) => string | Promise<string>;
+
+/**
  * Client configuration options
  */
 export interface ClientOptions {
@@ -31,6 +38,12 @@ export interface ClientOptions {
   keepAliveTimeout?: number;
   /** Maximum number of connections */
   maxConnections?: number;
+  /**
+   * Function to get API key per request.
+   * Receives request object for context-aware token selection.
+   * Called when no header override is provided.
+   */
+  getApiKeyForRequest?: ApiKeyResolver;
 }
 
 /**
@@ -47,6 +60,11 @@ export interface ClientConfig {
   keepAliveTimeout: number;
   maxConnections: number;
   dispatcher: Agent | ProxyAgent | Dispatcher;
+  /**
+   * Function to get API key per request.
+   * Receives request object for context-aware token selection.
+   */
+  getApiKeyForRequest?: ApiKeyResolver;
 }
 
 // =============================================================================

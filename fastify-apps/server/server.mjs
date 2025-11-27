@@ -74,12 +74,47 @@ const getModelForRequest = (request) => {
 // =============================================================================
 // App Options Configuration
 // =============================================================================
+// These options are passed down to individual app plugins during registration.
+// Each namespace corresponds to an app defined in getDefaultApps().
+//
+// Available namespaces:
+//   - authService: Options for auth-service plugin
+//   - userService: Options for user-service plugin
+//   - aiSdkChat: Options for ai-sdk-chat plugin
+//   - googleGeminiOpenaiChatCompletions: Options for Gemini chat plugin
+// =============================================================================
+
+/**
+ * Example: Per-request API key resolver for Gemini
+ *
+ * API key precedence:
+ * 1. X-GEMINI-OPENAI-API-KEY header (override)
+ * 2. getApiKeyForRequest(request) function (per-request)
+ * 3. GEMINI_API_KEY environment variable (permanent token)
+ *
+ * @param {object} request - Fastify request object
+ * @returns {Promise<string>} API key for this request
+ */
+// const getGeminiApiKeyForRequest = async (request) => {
+//   // Example: Get API key from user session
+//   const userId = request.user?.id;
+//   if (userId) {
+//     return await getUserApiKey(userId);
+//   }
+//   // Fallback to default
+//   return process.env.GEMINI_API_KEY;
+// };
 
 const appOptions = {
   authService: {},
   userService: {},
   aiSdkChat: {
     getModelForRequest,
+  },
+  // Google Gemini OpenAI Chat Completions options
+  googleGeminiOpenaiChatCompletions: {
+    // model: 'gemini-2.0-flash',  // Default model (optional)
+    // getApiKeyForRequest: getGeminiApiKeyForRequest,  // Per-request API key resolver
   },
 };
 

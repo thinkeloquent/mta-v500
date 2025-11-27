@@ -23,9 +23,9 @@
  *   await startServer(fastify);
  */
 
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { bootstrap } from './launch.mjs';
-import { settings } from './config.mjs';
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { bootstrap } from "./launch.mjs";
+import { settings } from "./config.mjs";
 
 // =============================================================================
 // Model Configuration
@@ -35,16 +35,16 @@ const DEFAULT_MODEL = settings.AI_DEFAULT_MODEL;
 
 const PROVIDERS = {
   openai: {
-    name: 'openai',
+    name: "openai",
     baseURL: settings.OPENAI_BASE_URL,
-    envKey: 'OPENAI_API_KEY',
-    modelPrefixes: ['gpt-', 'o1-', 'text-'],
+    envKey: "OPENAI_API_KEY",
+    modelPrefixes: ["gpt-", "o1-", "text-"],
   },
   google: {
-    name: 'google',
+    name: "google",
     baseURL: settings.GOOGLE_BASE_URL,
-    envKey: 'GEMINI_API_KEY',
-    modelPrefixes: ['gemini-'],
+    envKey: "GEMINI_API_KEY",
+    modelPrefixes: ["gemini-"],
   },
 };
 
@@ -58,9 +58,10 @@ function getProviderInstance(providerName) {
       throw new Error(`Unknown provider: ${providerName}`);
     }
     // Use settings for API keys
-    const apiKey = config.envKey === 'OPENAI_API_KEY'
-      ? settings.OPENAI_API_KEY
-      : settings.GEMINI_API_KEY;
+    const apiKey =
+      config.envKey === "OPENAI_API_KEY"
+        ? settings.OPENAI_API_KEY
+        : settings.GEMINI_API_KEY;
     providerInstances[providerName] = createOpenAICompatible({
       name: config.name,
       baseURL: config.baseURL,
@@ -80,7 +81,7 @@ function getProviderForModel(modelName) {
     }
   }
   // Default to google if no prefix matches
-  return 'google';
+  return "google";
 }
 
 // =============================================================================
@@ -95,7 +96,7 @@ function getProviderForModel(modelName) {
  * @returns {object} AI SDK model instance
  */
 const getModelForRequest = (request) => {
-  const modelName = request.headers['x-ai-model'] || DEFAULT_MODEL;
+  const modelName = request.headers["x-ai-model"] || DEFAULT_MODEL;
   const providerName = getProviderForModel(modelName);
   const provider = getProviderInstance(providerName);
   return provider.chatModel(modelName);
@@ -111,7 +112,29 @@ const getModelForRequest = (request) => {
 //   - authService: Options for auth-service plugin
 //   - userService: Options for user-service plugin
 //   - aiSdkChat: Options for ai-sdk-chat plugin
+//   - googleGeminiOpenaiChatCompletions: Options for Gemini chat plugin
 // =============================================================================
+
+/**
+ * Example: Per-request API key resolver for Gemini
+ *
+ * API key precedence:
+ * 1. X-GEMINI-OPENAI-API-KEY header (override)
+ * 2. getApiKeyForRequest(request) function (per-request)
+ * 3. GEMINI_API_KEY environment variable (permanent token)
+ *
+ * @param {object} request - Fastify request object
+ * @returns {Promise<string>} API key for this request
+ */
+const getGeminiApiKeyForRequest = async (request) => {
+  // Example: Get API key from user session
+  // const userId = request.user?.id;
+  // if (userId) {
+  //   return await getUserApiKey(userId);
+  // }
+  // Fallback to default
+  return process.env.GEMINI_API_KEY;
+};
 
 const appOptions = {
   // Auth service options
@@ -133,6 +156,7 @@ const appOptions = {
   // Google Gemini OpenAI Chat Completions options
   googleGeminiOpenaiChatCompletions: {
     // model: 'gemini-2.0-flash',  // Default model (optional)
+    getApiKeyForRequest: getGeminiApiKeyForRequest, // Per-request API key resolver
   },
 };
 
@@ -142,7 +166,7 @@ try {
     internalAppsOptions: appOptions,
   });
 } catch (error) {
-  console.error('Failed to start server:', error.message);
+  console.error("Failed to start server:", error.message);
   if (error.stack) {
     console.error(error.stack);
   }

@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from .models import ClientConfig
+from .models import ApiKeyResolver, ClientConfig
 from .config import (
     DEFAULT_BASE_URL,
     DEFAULT_TIMEOUT,
@@ -217,11 +217,28 @@ def get_client_config(
     custom_headers: dict[str, str] | None = None,
     timeout: float | None = None,
     max_connections: int | None = None,
+    get_api_key_for_request: ApiKeyResolver | None = None,
 ) -> ClientConfig:
     """
     Creates a ClientConfig object without creating an httpx client.
 
     Useful for inspecting configuration or passing to other functions.
+
+    Args:
+        api_key: API key (defaults to GEMINI_API_KEY env)
+        base_url: Base URL for API
+        proxy: Proxy URL (e.g., "http://proxy:8080")
+        cert: Path to client certificate file or tuple (cert, key)
+        ca_bundle: Path to CA bundle file
+        custom_headers: Additional headers
+        timeout: Request timeout in seconds
+        max_connections: Maximum number of connections
+        get_api_key_for_request: Async function to get API key per request.
+            Receives request object for context-aware token selection.
+            Signature: async def resolver(request) -> str
+
+    Returns:
+        ClientConfig object with all settings
     """
     resolved_api_key = get_api_key(api_key)
 
@@ -239,4 +256,5 @@ def get_client_config(
         custom_headers=custom_headers or {},
         timeout=timeout or DEFAULT_TIMEOUT,
         max_connections=max_connections or DEFAULT_MAX_CONNECTIONS,
+        get_api_key_for_request=get_api_key_for_request,
     )

@@ -21,6 +21,7 @@ export {
   extractAllContents,
   default as chat,
 } from './chat.mjs';
+export type { ChatCompletionExtendedOptions } from './chat.mjs';
 
 // Utils
 export {
@@ -37,6 +38,7 @@ export {
 
 // Models/Types
 export type {
+  ApiKeyResolver,
   ClientOptions,
   ClientConfig,
   MessageRole,

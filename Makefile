@@ -1,6 +1,8 @@
 # Makefile - Main CI orchestrator for MTA-V500
 # Extends: Makefile.fastapi, Makefile.fastify, Makefile.vite, Makefile.database
 # Implements standard CI targets: install, build, test, run, clean
+# - make dev-no-cache - Clears Python cache and starts dev server
+# - make -f Makefile.fastapi dev-no-cache - Same but just for FastAPI
 
 .PHONY: setup install build test run clean help
 
@@ -71,6 +73,14 @@ dev:
 	@bash .bin/clean-port-8080.sh
 	make -f Makefile.nx build
 	@bash .bin/dev-parallel.sh $(VITE_APPS)
+
+dev-no-cache: ## Clear Python cache and start dev server
+	@echo "[MTA] Clearing Python cache..."
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@find . -name "*.pyo" -delete 2>/dev/null || true
+	@echo "[MTA] Cache cleared!"
+	@$(MAKE) dev
 
 build:
 	@echo "═══════════════════════════════════════════════════════════════"

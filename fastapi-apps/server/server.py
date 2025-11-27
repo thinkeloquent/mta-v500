@@ -22,11 +22,27 @@ from . import initialize_app, start_server
 # This is a simplified configuration compared to main.py.
 # Customize this for different deployment scenarios.
 
+# Example: Per-request API key resolver for Gemini
+#
+# API key precedence:
+# 1. X-GEMINI-OPENAI-API-KEY header (override)
+# 2. get_api_key_for_request(request) function (per-request)
+# 3. GEMINI_API_KEY environment variable (permanent token)
+#
+async def get_gemini_api_key_for_request(request):
+    """Get API key from user session or other context."""
+    # user_id = getattr(request.state, "user_id", None)
+    # if user_id:
+    #     return await get_user_api_key(user_id)
+    return os.environ.get("GEMINI_API_KEY")
+
 app_options = {
     # Enable only specific apps
     "hello": {},
     "ai_sdk_chat": {},
-    "google_gemini_openai_chat_completions": {},
+    "google_gemini_openai_chat_completions": {
+        "get_api_key_for_request": get_gemini_api_key_for_request,
+    },
 }
 
 # =============================================================================

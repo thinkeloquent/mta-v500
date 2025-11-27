@@ -7,7 +7,7 @@ Type definitions and dataclasses for the Gemini OpenAI-compatible API.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Awaitable, Callable, Literal
 
 # Re-export constants from config for backward compatibility
 from .config import (
@@ -24,6 +24,10 @@ from .config import (
 
 MessageRole = Literal["system", "user", "assistant", "function", "tool"]
 ResponseFormatType = Literal["text", "json_object", "json_schema"]
+
+# Async-only resolver that receives request for context-aware API key selection
+# Usage: async def get_api_key(request) -> str: ...
+ApiKeyResolver = Callable[[Any], Awaitable[str]]
 
 # =============================================================================
 # Chat Message Models
@@ -160,3 +164,9 @@ class ClientConfig:
     custom_headers: dict[str, str] = field(default_factory=dict)
     timeout: float = DEFAULT_TIMEOUT
     max_connections: int = DEFAULT_MAX_CONNECTIONS
+    get_api_key_for_request: ApiKeyResolver | None = None
+    """
+    Async function to get API key per request.
+    Receives request object for context-aware token selection.
+    Called when no header override is provided.
+    """

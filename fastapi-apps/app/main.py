@@ -43,6 +43,30 @@ from launch import initialize_app, start_server
 #   - google_gemini_openai_chat_completions: Options for google-gemini app
 # =============================================================================
 
+# Example: Per-request API key resolver for Gemini
+#
+# API key precedence:
+# 1. X-GEMINI-OPENAI-API-KEY header (override)
+# 2. get_api_key_for_request(request) function (per-request)
+# 3. GEMINI_API_KEY environment variable (permanent token)
+#
+# async def get_gemini_api_key_for_request(request):
+#     """
+#     Example: Get API key from user session or other context.
+#
+#     Args:
+#         request: FastAPI Request object
+#
+#     Returns:
+#         API key string for this request
+#     """
+#     # Example: Get API key from user session
+#     user_id = getattr(request.state, "user_id", None)
+#     if user_id:
+#         return await get_user_api_key(user_id)
+#     # Fallback to environment variable
+#     return os.environ.get("GEMINI_API_KEY")
+
 app_options = {
     # Hello app options
     "hello": {},
@@ -63,7 +87,9 @@ app_options = {
     "ai_sdk_chat": {},
 
     # Google Gemini OpenAI Chat Completions options
-    "google_gemini_openai_chat_completions": {},
+    "google_gemini_openai_chat_completions": {
+        # "get_api_key_for_request": get_gemini_api_key_for_request,
+    },
 }
 
 # =============================================================================

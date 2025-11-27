@@ -7,7 +7,13 @@
  * @param {object} fastify - Fastify instance
  * @param {object} options - Plugin options passed from server.mjs
  * @param {string} [options.model] - Default model to use (default: 'gemini-2.0-flash')
+ * @param {function} [options.getApiKeyForRequest] - Async function to get API key per request.
+ *   Receives Fastify request object for context-aware token selection.
+ *   Signature: async (request) => string
  */
+
+// Header name for API key override
+const API_KEY_HEADER = "x-gemini-openai-api-key";
 
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,6 +105,7 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
     proxyFactory,
     proxyCert,
     proxyCaBundle,
+    getApiKeyForRequest,
   } = options;
 
   fastify.log.info("-> Initializing Google Gemini OpenAI Chat Completions plugin...");
@@ -111,7 +118,7 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
       // Use factory from options (primary configuration from launch.mjs)
       const dispatcher = proxyFactory.getProxyDispatcher();
       client = createClientWithDispatcher(
-        { cert: proxyCert, caBundle: proxyCaBundle },
+        { cert: proxyCert, caBundle: proxyCaBundle, getApiKeyForRequest },
         dispatcher
       );
       fastify.log.info("  Using proxy configuration from server entry point");
@@ -119,12 +126,15 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
       // Fallback to environment-based detection
       const dispatcher = getProxyDispatcher();
       if (dispatcher) {
-        client = createClientWithDispatcher({}, dispatcher);
+        client = createClientWithDispatcher({ getApiKeyForRequest }, dispatcher);
         fastify.log.info("  Using proxy configuration from environment variables");
       } else {
-        client = createClient();
+        client = createClient({ getApiKeyForRequest });
         fastify.log.info("  No proxy configured, using direct connection");
       }
+    }
+    if (getApiKeyForRequest) {
+      fastify.log.info("  Per-request API key resolver configured");
     }
   } catch (error) {
     fastify.log.warn(
@@ -215,10 +225,15 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
       try {
         const { messages, model, temperature, max_tokens } = request.body;
 
-        // Build options
+        // Extract header override for API key
+        const requestApiKey = request.headers[API_KEY_HEADER];
+
+        // Build options with request context for dynamic token resolution
         const chatOptions = {
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
           model: model || defaultModel,
+          request, // Pass request for per-request token function
+          requestApiKey, // Pass header override (highest precedence)
         };
 
         if (temperature !== undefined) {
@@ -317,6 +332,9 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
           schema_required,
         } = request.body;
 
+        // Extract header override for API key
+        const requestApiKey = request.headers[API_KEY_HEADER];
+
         // Create JSON schema
         const schema = createJsonSchema(
           schema_name,
@@ -324,10 +342,12 @@ async function googleGeminiOpenaiChatCompletionsPlugin(fastify, options = {}) {
           schema_required || []
         );
 
-        // Build options
+        // Build options with request context for dynamic token resolution
         const chatOptions = {
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
           model: model || defaultModel,
+          request, // Pass request for per-request token function
+          requestApiKey, // Pass header override (highest precedence)
         };
 
         if (temperature !== undefined) {

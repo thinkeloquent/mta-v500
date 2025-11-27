@@ -636,16 +636,35 @@ def register_internal_apps(
 ) -> Dict[str, FastAPI]:
     """
     Mount internal sub-apps.
-    Returns dict of successfully mounted apps.
+    Passes options from app_options to each sub-app via app.state.plugin_options.
+
+    Args:
+        app: Parent FastAPI application
+        apps: List of app configs (uses get_default_apps if None)
+        app_options: Dict mapping app names to their options
+            e.g., {"google_gemini_openai_chat_completions": {"get_api_key_for_request": ...}}
+
+    Returns:
+        Dict of successfully mounted apps.
     """
     from env_feature_flag import is_app_mount_enabled
 
     apps = apps or get_default_apps(app_options)
+    app_options = app_options or {}
     mounted = {}
 
     for app_config in apps:
         sub_app = app_config.get("app")
         if sub_app and is_app_mount_enabled(app_config["flag"]):
+            # Pass options to sub-app via state
+            # Use underscore version of name for dict key lookup
+            options_key = app_config["name"].replace("-", "_")
+            sub_app_options = app_options.get(options_key, {})
+            if sub_app_options:
+                if not hasattr(sub_app, "state"):
+                    sub_app.state = type("State", (), {})()
+                sub_app.state.plugin_options = sub_app_options
+
             app.mount(app_config["mount_path"], sub_app)
             mounted[app_config["name"]] = sub_app
 

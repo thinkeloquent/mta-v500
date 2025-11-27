@@ -54,6 +54,7 @@ export function createClient(options: ClientOptions = {}): ClientConfig {
     timeout: options.timeout || DEFAULT_TIMEOUT,
     keepAliveTimeout: options.keepAliveTimeout || DEFAULT_KEEP_ALIVE_TIMEOUT,
     maxConnections: options.maxConnections || DEFAULT_MAX_CONNECTIONS,
+    getApiKeyForRequest: options.getApiKeyForRequest,
   };
 
   // Build TLS options if cert or CA bundle provided
@@ -139,6 +140,7 @@ export function createClientWithDispatcher(
     keepAliveTimeout: options.keepAliveTimeout || DEFAULT_KEEP_ALIVE_TIMEOUT,
     maxConnections: options.maxConnections || DEFAULT_MAX_CONNECTIONS,
     dispatcher,
+    getApiKeyForRequest: options.getApiKeyForRequest,
   };
 }
 

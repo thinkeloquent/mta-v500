@@ -18,26 +18,59 @@ import type {
 import { DEFAULT_MODEL } from './config.mjs';
 
 /**
+ * Extended chat completion options with request context for dynamic token resolution.
+ */
+export interface ChatCompletionExtendedOptions extends ChatCompletionOptions {
+  /**
+   * Request object for context-aware API key selection.
+   * Passed to getApiKeyForRequest if defined on client.
+   */
+  request?: unknown;
+  /**
+   * API key override from request header (X-GEMINI-OPENAI-API-KEY).
+   * Takes highest precedence over per-request function and permanent token.
+   */
+  requestApiKey?: string;
+}
+
+/**
  * Performs a chat completion request.
  *
+ * API key precedence:
+ * 1. requestApiKey (header override X-GEMINI-OPENAI-API-KEY)
+ * 2. client.getApiKeyForRequest(request) - per-request function
+ * 3. client.apiKey - permanent token
+ *
  * @param client - Client configuration from createClient()
- * @param options - Chat completion options
+ * @param options - Chat completion options with optional request context
  * @returns Chat completion response
  * @throws Error on API errors or invalid input
  *
  * @example
  * ```typescript
+ * // Basic usage (permanent token)
  * const response = await chatCompletion(client, {
  *   messages: [{ role: 'user', content: 'Hello!' }],
  *   model: 'gemini-2.0-flash',
  *   temperature: 0.7,
  * });
- * console.log(response.choices[0].message.content);
+ *
+ * // With request context for per-request token
+ * const response = await chatCompletion(client, {
+ *   messages: [{ role: 'user', content: 'Hello!' }],
+ *   request: fastifyRequest,  // Passed to getApiKeyForRequest
+ * });
+ *
+ * // With header override
+ * const response = await chatCompletion(client, {
+ *   messages: [{ role: 'user', content: 'Hello!' }],
+ *   requestApiKey: headerApiKey,  // From X-GEMINI-OPENAI-API-KEY header
+ * });
  * ```
  */
 export async function chatCompletion(
   client: ClientConfig,
-  options: ChatCompletionOptions
+  options: ChatCompletionExtendedOptions
 ): Promise<ChatCompletionResponse> {
   const {
     messages,
@@ -48,11 +81,25 @@ export async function chatCompletion(
     n,
     stop,
     responseFormat,
+    request: requestContext,
+    requestApiKey,
     ...kwargs
   } = options;
 
   if (!messages || !Array.isArray(messages)) {
     throw new Error('messages is required and must be an array');
+  }
+
+  // Resolve API key with precedence:
+  // 1. Header override (requestApiKey)
+  // 2. Per-request function (getApiKeyForRequest)
+  // 3. Permanent token (client.apiKey)
+  let resolvedApiKey = requestApiKey;
+  if (!resolvedApiKey && client.getApiKeyForRequest && requestContext) {
+    resolvedApiKey = await client.getApiKeyForRequest(requestContext);
+  }
+  if (!resolvedApiKey) {
+    resolvedApiKey = client.apiKey;
   }
 
   const url = `${client.baseUrl}/chat/completions`;
@@ -71,10 +118,10 @@ export async function chatCompletion(
   if (stop !== undefined) body.stop = stop;
   if (responseFormat !== undefined) body.response_format = responseFormat;
 
-  // Build headers
+  // Build headers with resolved API key
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${client.apiKey}`,
+    Authorization: `Bearer ${resolvedApiKey}`,
     ...client.customHeaders,
   };
 
@@ -99,6 +146,11 @@ export async function chatCompletion(
 
 /**
  * Performs a chat completion request with structured JSON output.
+ *
+ * API key precedence (same as chatCompletion):
+ * 1. requestApiKey (header override X-GEMINI-OPENAI-API-KEY)
+ * 2. client.getApiKeyForRequest(request) - per-request function
+ * 3. client.apiKey - permanent token
  *
  * @param client - Client configuration from createClient()
  * @param options - Chat completion options (responseFormat will be set automatically)
@@ -126,7 +178,7 @@ export async function chatCompletion(
  */
 export async function chatCompletionStructured<T = unknown>(
   client: ClientConfig,
-  options: Omit<ChatCompletionOptions, 'responseFormat'>,
+  options: Omit<ChatCompletionExtendedOptions, 'responseFormat'>,
   schema: StructuredOutputSchema<T>
 ): Promise<ChatCompletionResponse> {
   const responseFormat: ResponseFormat = {
@@ -142,7 +194,7 @@ export async function chatCompletionStructured<T = unknown>(
   return chatCompletion(client, {
     ...options,
     responseFormat,
-  } as ChatCompletionOptions);
+  } as ChatCompletionExtendedOptions);
 }
 
 /**

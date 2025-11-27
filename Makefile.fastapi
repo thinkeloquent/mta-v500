@@ -112,6 +112,14 @@ dev:
 		--reload-exclude '.pytest_cache/*' \
 		--reload-exclude '*.egg-info/*'
 
+dev-no-cache: ## Clear Python cache and start dev server
+	@echo "[FastAPI] Clearing Python cache..."
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@find . -name "*.pyo" -delete 2>/dev/null || true
+	@echo "[FastAPI] Cache cleared!"
+	@$(MAKE) -f Makefile.fastapi dev
+
 dev-force:
 	@echo "[FastAPI] Force rebuilding environment and clearing all caches..."
 	@echo "[FastAPI] This will fix issues with:"

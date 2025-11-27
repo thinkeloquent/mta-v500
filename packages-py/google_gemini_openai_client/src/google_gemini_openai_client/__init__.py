@@ -62,10 +62,13 @@ from .client import (
 from .chat import (
     chat_completion,
     chat_completion_async,
+    chat_completion_with_dynamic_key,
     chat_completion_structured,
     parse_structured_output,
     extract_content,
     extract_all_contents,
+    resolve_api_key,
+    API_KEY_HEADER,
 )
 
 # Utils
@@ -96,6 +99,7 @@ from .config import (
 # Models
 from .models import (
     # Types
+    ApiKeyResolver,
     MessageRole,
     ResponseFormatType,
     # Dataclasses
@@ -121,10 +125,13 @@ __all__ = [
     # Chat
     "chat_completion",
     "chat_completion_async",
+    "chat_completion_with_dynamic_key",
     "chat_completion_structured",
     "parse_structured_output",
     "extract_content",
     "extract_all_contents",
+    "resolve_api_key",
+    "API_KEY_HEADER",
     # Utils
     "log_progress",
     "format_output",
@@ -145,6 +152,7 @@ __all__ = [
     "ENV_API_KEY",
     "get_api_key",
     # Types
+    "ApiKeyResolver",
     "MessageRole",
     "ResponseFormatType",
     # Models
