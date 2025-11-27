@@ -1,0 +1,31 @@
+{
+  "name": "@internal/fastify-server",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/server",
+  "projectType": "application",
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/fastify-main",
+    "@internal/fastify-ai-sdk-chat"
+  ],
+  "targets": {
+    "lint": {},
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastify-apps/server"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run start",
+        "cwd": "fastify-apps/server"
+      }
+    }
+  }
+}

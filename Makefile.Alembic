@@ -1,0 +1,613 @@
+.PHONY: help list setup-all check-env check-db status-all current-all history-all \
+        upgrade-all validate-all clean-all status current history upgrade create \
+        downgrade heads show
+
+# ============================================================================
+# Root Alembic Orchestrator - Manage All FastAPI App Migrations
+# ============================================================================
+#
+# This Makefile orchestrates Alembic database migrations across all FastAPI
+# applications in the monorepo. It delegates to each app's individual
+# Makefile.Alembic while providing centralized control.
+#
+# Usage:
+#   make -f Makefile.Alembic help           # Show this help
+#   make -f Makefile.Alembic setup-all      # Create venvs for all apps
+#   make -f Makefile.Alembic upgrade-all    # Upgrade all apps
+#   make -f Makefile.Alembic status-all     # Show status for all apps
+# Usage Examples
+
+# First-time setup:
+# make -f Alembic.Makefile setup-all
+
+# Check environment:
+# make -f Alembic.Makefile check-env
+# make -f Alembic.Makefile check-db
+
+# View status across all apps:
+# make -f Alembic.Makefile status-all
+
+# Upgrade all apps:
+# make -f Alembic.Makefile upgrade-all
+
+# Work with single app:
+# make -f Alembic.Makefile status APP=app-persona-editor
+# make -f Alembic.Makefile create APP=app-ask-ai MSG='create users table'
+# make -f Alembic.Makefile upgrade APP=app-ask-ai
+
+# Maintenance:
+# make -f Alembic.Makefile validate-all
+# make -f Alembic.Makefile clean-all
+
+# Single App Usage:
+#   make -f Makefile.Alembic upgrade APP=app-persona-editor
+#   make -f Makefile.Alembic create APP=app-ask-ai MSG='create users table'
+#
+# ============================================================================
+
+# Configuration
+FASTAPI_APPS_DIR := fastapi-apps
+APPS_WITH_ALEMBIC := app-react-component-esm \
+                     app-persona-editor \
+                     app-figma-component-inspector
+
+# Use project venv if available, otherwise fall back to system python3
+PYTHON := $(shell if [ -f .venv/bin/python ]; then echo ".venv/bin/python"; else echo "python3"; fi)
+VENV := venv
+PIP := $(VENV)/bin/pip
+ALEMBIC := $(VENV)/bin/alembic
+
+# Colors for output
+RED := \033[0;31m
+YELLOW := \033[1;33m
+GREEN := \033[0;32m
+BLUE := \033[0;34m
+CYAN := \033[0;36m
+MAGENTA := \033[0;35m
+NC := \033[0m # No Color
+
+# Environment variables for database
+POSTGRES_HOST ?= $(shell echo $$POSTGRES_HOST)
+POSTGRES_PORT ?= $(shell echo $$POSTGRES_PORT)
+POSTGRES_USER ?= $(shell echo $$POSTGRES_USER)
+POSTGRES_PASSWORD ?= $(shell echo $$POSTGRES_PASSWORD)
+POSTGRES_DB ?= $(shell echo $$POSTGRES_DB)
+POSTGRES_SCHEMA ?= $(shell echo $$POSTGRES_SCHEMA)
+POSTGRES_SSLMODE ?= $(shell echo $$POSTGRES_SSLMODE)
+
+# ============================================================================
+# Help & Discovery
+# ============================================================================
+
+help:
+	@echo "$(BLUE)╔════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Root Alembic Orchestrator - FastAPI Migration Management     ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(CYAN)Setup & Environment:$(NC)"
+	@echo "  make -f Makefile.Alembic init-all      - 🚀 Full initialization (setup + check + upgrade all)"
+	@echo "  make -f Makefile.Alembic setup-all     - Create venvs + install alembic for all apps"
+	@echo "  make -f Makefile.Alembic check-env     - Verify POSTGRES_* environment variables"
+	@echo "  make -f Makefile.Alembic check-db      - Test database connectivity"
+	@echo "  make -f Makefile.Alembic list          - List all apps with Alembic setup"
+	@echo ""
+	@echo "$(GREEN)Status & Information (All Apps):$(NC)"
+	@echo "  make -f Makefile.Alembic status-all    - Show migration status for all apps"
+	@echo "  make -f Makefile.Alembic current-all   - Show current revision for all apps"
+	@echo "  make -f Makefile.Alembic history-all   - Show migration history for all apps"
+	@echo "  make -f Makefile.Alembic heads-all     - Show head revisions for all apps"
+	@echo ""
+	@echo "$(GREEN)Migration Operations (All Apps):$(NC)"
+	@echo "  make -f Makefile.Alembic upgrade-all   - Apply all pending migrations (sequential)"
+	@echo "  make -f Makefile.Alembic validate-all  - Validate all migration histories"
+	@echo "  make -f Makefile.Alembic clean-all     - Clean all Alembic cache files"
+	@echo ""
+	@echo "$(YELLOW)Single App Operations:$(NC)"
+	@echo "  make -f Makefile.Alembic status APP=<name>        - Show status for specific app"
+	@echo "  make -f Makefile.Alembic current APP=<name>       - Show current revision"
+	@echo "  make -f Makefile.Alembic history APP=<name>       - Show migration history"
+	@echo "  make -f Makefile.Alembic upgrade APP=<name>       - Upgrade specific app"
+	@echo "  make -f Makefile.Alembic create APP=<name> MSG='...' - Create new migration"
+	@echo "  make -f Makefile.Alembic downgrade APP=<name>     - Downgrade one migration (requires confirmation)"
+	@echo "  make -f Makefile.Alembic stamp APP=<name> REV='id' - Stamp database with revision (no migration run)"
+	@echo "  make -f Makefile.Alembic heads APP=<name>         - Show head revisions"
+	@echo "  make -f Makefile.Alembic show APP=<name> REV='id' - Show specific revision"
+	@echo ""
+	@echo "$(MAGENTA)Managed Apps ($(words $(APPS_WITH_ALEMBIC)) total):$(NC)"
+	@for app in $(APPS_WITH_ALEMBIC); do echo "  • $$app"; done
+	@echo ""
+	@echo "$(BLUE)Examples:$(NC)"
+	@echo "  make -f Makefile.Alembic init-all      # Full initialization (recommended)"
+	@echo "  make -f Makefile.Alembic setup-all     # Just create venvs"
+	@echo "  make -f Makefile.Alembic upgrade-all   # Run all migrations"
+	@echo "  make -f Makefile.Alembic create APP=app-ask-ai MSG='create users table'"
+	@echo "  make -f Makefile.Alembic upgrade APP=app-persona-editor"
+	@echo ""
+
+list:
+	@echo "$(BLUE)Apps with Alembic setup ($(words $(APPS_WITH_ALEMBIC)) total):$(NC)"
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		if [ -f "$(FASTAPI_APPS_DIR)/$$app/Makefile.Alembic" ]; then \
+			echo "  $(GREEN)✓$(NC) $$app"; \
+		else \
+			echo "  $(RED)✗$(NC) $$app $(YELLOW)(Makefile.Alembic missing)$(NC)"; \
+		fi \
+	done
+
+# ============================================================================
+# Setup & Environment Checks
+# ============================================================================
+
+setup-all:
+	@echo "$(BLUE)Setting up virtual environments for all apps...$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)[$$(date '+%H:%M:%S')] Processing $$app...$(NC)"; \
+		if [ ! -d "$(FASTAPI_APPS_DIR)/$$app/$(VENV)" ]; then \
+			echo "  $(YELLOW)Creating venv...$(NC)"; \
+			$(PYTHON) -m venv $(FASTAPI_APPS_DIR)/$$app/$(VENV); \
+			echo "  $(YELLOW)Installing alembic and psycopg2-binary...$(NC)"; \
+			$(FASTAPI_APPS_DIR)/$$app/$(VENV)/bin/pip install --quiet --upgrade pip; \
+			$(FASTAPI_APPS_DIR)/$$app/$(VENV)/bin/pip install --quiet alembic psycopg2-binary sqlalchemy; \
+			echo "  $(GREEN)✓ Setup complete for $$app$(NC)"; \
+		else \
+			echo "  $(GREEN)✓ venv already exists for $$app$(NC)"; \
+		fi; \
+		echo ""; \
+	done
+	@echo "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(GREEN)✓ All app environments ready!$(NC)"
+	@echo "$(BLUE)Next steps:$(NC)"
+	@echo "  1. Ensure POSTGRES_* environment variables are set"
+	@echo "  2. Run: make -f Makefile.Alembic check-env"
+	@echo "  3. Run: make -f Makefile.Alembic status-all"
+
+init-all: setup-all
+	@echo ""
+	@echo "$(BLUE)╔════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Initialize All Databases - Full Setup                        ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)This will:$(NC)"
+	@echo "  1. Verify environment variables"
+	@echo "  2. Test database connectivity"
+	@echo "  3. Apply all pending migrations to all apps"
+	@echo ""
+	@read -p "Continue? [y/N] " -n 1 -r; \
+	echo; \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+		echo ""; \
+		make -f Makefile.Alembic check-env && \
+		echo "" && \
+		make -f Makefile.Alembic check-db && \
+		echo "" && \
+		make -f Makefile.Alembic upgrade-all; \
+	else \
+		echo "$(RED)✗ Initialization cancelled$(NC)"; \
+		exit 1; \
+	fi
+
+check-env:
+	@echo "$(BLUE)Checking environment variables...$(NC)"
+	@echo ""
+	@if [ -z "$(POSTGRES_HOST)" ]; then \
+		echo "  $(RED)✗ POSTGRES_HOST not set$(NC)"; \
+		ENV_ERROR=1; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_HOST = $(POSTGRES_HOST)$(NC)"; \
+	fi
+	@if [ -z "$(POSTGRES_PORT)" ]; then \
+		echo "  $(RED)✗ POSTGRES_PORT not set$(NC)"; \
+		ENV_ERROR=1; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_PORT = $(POSTGRES_PORT)$(NC)"; \
+	fi
+	@if [ -z "$(POSTGRES_USER)" ]; then \
+		echo "  $(RED)✗ POSTGRES_USER not set$(NC)"; \
+		ENV_ERROR=1; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_USER = $(POSTGRES_USER)$(NC)"; \
+	fi
+	@if [ -z "$(POSTGRES_PASSWORD)" ]; then \
+		echo "  $(RED)✗ POSTGRES_PASSWORD not set$(NC)"; \
+		ENV_ERROR=1; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_PASSWORD = ******** (set)$(NC)"; \
+	fi
+	@if [ -z "$(POSTGRES_DB)" ]; then \
+		echo "  $(RED)✗ POSTGRES_DB not set$(NC)"; \
+		ENV_ERROR=1; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_DB = $(POSTGRES_DB)$(NC)"; \
+	fi
+	@if [ -z "$(POSTGRES_SCHEMA)" ]; then \
+		echo "  $(YELLOW)⚠ POSTGRES_SCHEMA not set (will use 'public')$(NC)"; \
+	else \
+		echo "  $(GREEN)✓ POSTGRES_SCHEMA = $(POSTGRES_SCHEMA)$(NC)"; \
+	fi
+	@echo ""
+	@if [ -n "$$ENV_ERROR" ]; then \
+		echo "$(RED)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		echo "$(RED)✗ Missing required environment variables!$(NC)"; \
+		echo "$(YELLOW)Set them using:$(NC)"; \
+		echo "  export POSTGRES_HOST=localhost"; \
+		echo "  export POSTGRES_PORT=5432"; \
+		echo "  export POSTGRES_USER=postgres"; \
+		echo "  export POSTGRES_PASSWORD=your_password"; \
+		echo "  export POSTGRES_DB=your_database"; \
+		echo "$(YELLOW)Per project policy: Do NOT use .env files$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		echo "$(GREEN)✓ All required environment variables are set!$(NC)"; \
+	fi
+
+check-db: check-env
+	@echo "$(BLUE)Testing database connectivity...$(NC)"
+	@echo ""
+	@echo "  Database: $(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+	@echo "  User: $(POSTGRES_USER)"
+	@if [ -n "$(POSTGRES_SSLMODE)" ] && [ "$(POSTGRES_SSLMODE)" != "false" ]; then \
+		echo "  SSL Mode: require"; \
+	else \
+		echo "  SSL Mode: disabled"; \
+	fi
+	@echo ""
+	@if [ -n "$(POSTGRES_SSLMODE)" ] && [ "$(POSTGRES_SSLMODE)" != "false" ]; then \
+		if $(PYTHON) -c "import psycopg2; conn = psycopg2.connect(host='$(POSTGRES_HOST)', port='$(POSTGRES_PORT)', user='$(POSTGRES_USER)', password='$(POSTGRES_PASSWORD)', dbname='$(POSTGRES_DB)', sslmode='require'); conn.close()" 2>/dev/null; then \
+			echo "$(GREEN)✓ Database connection successful!$(NC)"; \
+		else \
+			echo "$(RED)✗ Database connection failed!$(NC)"; \
+			echo "$(YELLOW)Possible issues:$(NC)"; \
+			echo "  1. Database server is not running"; \
+			echo "  2. Incorrect connection parameters"; \
+			echo "  3. SSL connection rejected (check SSL certificates)"; \
+			echo "  4. psycopg2 not installed (run: make -f Makefile.Alembic setup-all)"; \
+			exit 1; \
+		fi; \
+	else \
+		if $(PYTHON) -c "import psycopg2; conn = psycopg2.connect(host='$(POSTGRES_HOST)', port='$(POSTGRES_PORT)', user='$(POSTGRES_USER)', password='$(POSTGRES_PASSWORD)', dbname='$(POSTGRES_DB)'); conn.close()" 2>/dev/null; then \
+			echo "$(GREEN)✓ Database connection successful!$(NC)"; \
+		else \
+			echo "$(RED)✗ Database connection failed!$(NC)"; \
+			echo "$(YELLOW)Possible issues:$(NC)"; \
+			echo "  1. Database server is not running"; \
+			echo "  2. Incorrect connection parameters"; \
+			echo "  3. psycopg2 not installed (run: make -f Makefile.Alembic setup-all)"; \
+			exit 1; \
+		fi; \
+	fi
+
+# ============================================================================
+# Bulk Operations (All Apps) - Sequential Execution
+# ============================================================================
+
+status-all:
+	@echo "$(BLUE)╔════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Migration Status - All Apps                                   ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		echo "$(MAGENTA)$$app$(NC)"; \
+		echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+			echo "$(YELLOW)Current Revision:$(NC)"; \
+			(cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic current -v 2>&1) || echo "$(RED)No migration applied yet$(NC)"; \
+			echo ""; \
+			echo "$(YELLOW)Migration History:$(NC)"; \
+			(cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic history 2>&1) || echo "$(RED)✗ Failed to get history for $$app$(NC)"; \
+		else \
+			echo "$(RED)✗ App directory not found$(NC)"; \
+		fi; \
+		echo ""; \
+	done
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+
+current-all:
+	@echo "$(BLUE)Current Revisions - All Apps$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)[$$(date '+%H:%M:%S')] $$app:$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+			cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic current -v 2>&1 || echo "$(RED)  ✗ Failed$(NC)"; \
+		else \
+			echo "$(RED)  ✗ App directory not found$(NC)"; \
+		fi; \
+		echo ""; \
+	done
+
+history-all:
+	@echo "$(BLUE)Migration History - All Apps$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		echo "$(MAGENTA)$$app$(NC)"; \
+		echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+			cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic history -v 2>&1 || echo "$(RED)✗ Failed$(NC)"; \
+		else \
+			echo "$(RED)✗ App directory not found$(NC)"; \
+		fi; \
+		echo ""; \
+	done
+
+heads-all:
+	@echo "$(BLUE)Head Revisions - All Apps$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)[$$(date '+%H:%M:%S')] $$app:$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+			cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic heads -v 2>&1 || echo "$(RED)  ✗ Failed$(NC)"; \
+		else \
+			echo "$(RED)  ✗ App directory not found$(NC)"; \
+		fi; \
+		echo ""; \
+	done
+
+upgrade-all: check-env
+	@echo "$(BLUE)╔════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║  Upgrading All Apps - Sequential Execution                     ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)⚠️  This will apply all pending migrations to all apps$(NC)"
+	@echo "$(YELLOW)⚠️  Apps will be processed sequentially (safer)$(NC)"
+	@echo ""
+	@read -p "Continue? [y/N] " -n 1 -r; \
+	echo; \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+		SUCCESS_COUNT=0; \
+		FAIL_COUNT=0; \
+		for app in $(APPS_WITH_ALEMBIC); do \
+			echo ""; \
+			echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+			echo "$(MAGENTA)[$$(date '+%H:%M:%S')] Upgrading $$app...$(NC)"; \
+			echo "$(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+			if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+				if (cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic upgrade head) 2>&1; then \
+					echo "$(GREEN)✓ $$app upgraded successfully$(NC)"; \
+					SUCCESS_COUNT=$$((SUCCESS_COUNT + 1)); \
+				else \
+					echo "$(RED)✗ $$app upgrade failed!$(NC)"; \
+					FAIL_COUNT=$$((FAIL_COUNT + 1)); \
+					echo "$(RED)Migration stopped due to error in $$app$(NC)"; \
+					exit 1; \
+				fi; \
+			else \
+				echo "$(RED)✗ App directory not found for $$app$(NC)"; \
+				FAIL_COUNT=$$((FAIL_COUNT + 1)); \
+			fi; \
+		done; \
+		echo ""; \
+		echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+		echo "$(GREEN)Summary:$(NC)"; \
+		echo "  $(GREEN)✓ Success: $$SUCCESS_COUNT$(NC)"; \
+		if [ $$FAIL_COUNT -gt 0 ]; then \
+			echo "  $(RED)✗ Failed: $$FAIL_COUNT$(NC)"; \
+		fi; \
+		echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+	else \
+		echo "$(RED)✗ Upgrade cancelled$(NC)"; \
+		exit 1; \
+	fi
+
+validate-all:
+	@echo "$(BLUE)Validating All Migration Histories...$(NC)"
+	@echo ""
+	@SUCCESS_COUNT=0; \
+	FAIL_COUNT=0; \
+	for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)[$$(date '+%H:%M:%S')] Validating $$app...$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app" ]; then \
+			if cd $(FASTAPI_APPS_DIR)/$$app && ./venv/bin/alembic check 2>&1; then \
+				echo "  $(GREEN)✓ Valid$(NC)"; \
+				SUCCESS_COUNT=$$((SUCCESS_COUNT + 1)); \
+			else \
+				echo "  $(RED)✗ Invalid$(NC)"; \
+				FAIL_COUNT=$$((FAIL_COUNT + 1)); \
+			fi; \
+		fi; \
+		echo ""; \
+	done; \
+	echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"; \
+	echo "$(GREEN)Summary:$(NC)"; \
+	echo "  $(GREEN)✓ Valid: $$SUCCESS_COUNT$(NC)"; \
+	if [ $$FAIL_COUNT -gt 0 ]; then \
+		echo "  $(RED)✗ Invalid: $$FAIL_COUNT$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+
+clean-all:
+	@echo "$(BLUE)Cleaning All Alembic Caches...$(NC)"
+	@echo ""
+	@for app in $(APPS_WITH_ALEMBIC); do \
+		echo "$(CYAN)[$$(date '+%H:%M:%S')] Cleaning $$app...$(NC)"; \
+		if [ -d "$(FASTAPI_APPS_DIR)/$$app/alembic" ]; then \
+			find $(FASTAPI_APPS_DIR)/$$app/alembic -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true; \
+			find $(FASTAPI_APPS_DIR)/$$app/alembic -type f -name '*.pyc' -delete 2>/dev/null || true; \
+		fi; \
+	done
+	@echo ""
+	@echo "$(GREEN)✓ All caches cleaned$(NC)"
+
+# ============================================================================
+# Single App Operations
+# ============================================================================
+
+status:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic status APP=app-name"; \
+		echo "Example: make -f Makefile.Alembic status APP=app-persona-editor"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FASTAPI_APPS_DIR)/$(APP)" ]; then \
+		echo "$(RED)Error: App '$(APP)' not found$(NC)"; \
+		echo "Available apps:"; \
+		for app in $(APPS_WITH_ALEMBIC); do echo "  • $$app"; done; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(GREEN)Current Migration Status: $(APP)$(NC)"
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Current Revision:$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic current -v || echo "$(RED)No migration applied yet$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Migration History:$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic history
+	@echo ""
+	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+
+current:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic current APP=app-name"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Current revision for $(APP):$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic current -v
+
+history:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic history APP=app-name"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Migration history for $(APP):$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic history -v
+
+heads:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic heads APP=app-name"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Head revisions for $(APP):$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic heads -v
+
+show:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic show APP=app-name REV='revision_id'"; \
+		exit 1; \
+	fi
+	@if [ -z "$(REV)" ]; then \
+		echo "$(RED)Error: REV parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic show APP=app-name REV='revision_id'"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Showing revision $(REV) for $(APP):$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic show $(REV)
+
+upgrade: check-env
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic upgrade APP=app-name"; \
+		echo "Example: make -f Makefile.Alembic upgrade APP=app-persona-editor"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FASTAPI_APPS_DIR)/$(APP)" ]; then \
+		echo "$(RED)Error: App '$(APP)' not found$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -n "$(REV)" ]; then \
+		echo "$(BLUE)Upgrading $(APP) to revision: $(REV)$(NC)"; \
+		cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic upgrade $(REV) && echo "$(GREEN)✅ Upgrade to $(REV) complete.$(NC)" || (echo "$(RED)❌ Migration failed!$(NC)" && exit 1); \
+	else \
+		echo "$(BLUE)Applying all pending migrations to HEAD for $(APP)...$(NC)"; \
+		cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic upgrade head && echo "$(GREEN)✅ All migrations applied successfully.$(NC)" || (echo "$(RED)❌ Migration failed!$(NC)" && exit 1); \
+	fi
+
+create:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic create APP=app-name MSG='migration message'"; \
+		echo "Example: make -f Makefile.Alembic create APP=app-ask-ai MSG='create users table'"; \
+		exit 1; \
+	fi
+	@if [ -z "$(MSG)" ]; then \
+		echo "$(RED)Error: MSG parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic create APP=app-name MSG='migration message'"; \
+		echo "Example: make -f Makefile.Alembic create APP=app-ask-ai MSG='create users table'"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FASTAPI_APPS_DIR)/$(APP)" ]; then \
+		echo "$(RED)Error: App '$(APP)' not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating new migration for $(APP): $(MSG)$(NC)"
+	@cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic revision --autogenerate -m "$(MSG)"
+	@echo "$(GREEN)✅ Migration created. Review the generated file before applying!$(NC)"
+	@echo "$(YELLOW)⚠️  Always review autogenerated migrations for accuracy.$(NC)"
+
+downgrade:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic downgrade APP=app-name"; \
+		echo "Example: make -f Makefile.Alembic downgrade APP=app-persona-editor"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FASTAPI_APPS_DIR)/$(APP)" ]; then \
+		echo "$(RED)Error: App '$(APP)' not found$(NC)"; \
+		exit 1; \
+	fi
+	@if [ "$(FORCE)" = "1" ]; then \
+		echo "$(YELLOW)⚠️  FORCE mode enabled - downgrading one migration for $(APP)...$(NC)"; \
+		cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic downgrade -1 && echo "$(GREEN)✅ Downgrade complete.$(NC)" || (echo "$(RED)❌ Downgrade failed!$(NC)" && exit 1); \
+	else \
+		echo "$(RED)⚠️  WARNING: DESTRUCTIVE OPERATION$(NC)"; \
+		echo "$(YELLOW)This will downgrade one migration for $(APP) and may drop tables/columns!$(NC)"; \
+		echo ""; \
+		echo "Current revision:"; \
+		cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic current; \
+		echo ""; \
+		read -p "Are you sure you want to proceed? [y/N] " -n 1 -r; \
+		echo; \
+		if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+			echo "$(BLUE)Downgrading one migration...$(NC)"; \
+			cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic downgrade -1 && echo "$(GREEN)✅ Downgrade complete.$(NC)" || (echo "$(RED)❌ Downgrade failed!$(NC)" && exit 1); \
+		else \
+			echo "$(RED)❌ Downgrade cancelled.$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
+
+stamp:
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)Error: APP parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic stamp APP=app-name REV='revision_id'"; \
+		echo "Example: make -f Makefile.Alembic stamp APP=app-react-component-esm REV='head'"; \
+		exit 1; \
+	fi
+	@if [ -z "$(REV)" ]; then \
+		echo "$(RED)Error: REV parameter required$(NC)"; \
+		echo "Usage: make -f Makefile.Alembic stamp APP=app-name REV='revision_id'"; \
+		echo "Example: make -f Makefile.Alembic stamp APP=app-react-component-esm REV='head'"; \
+		echo "Example: make -f Makefile.Alembic stamp APP=app-react-component-esm REV='3b63876821a9'"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FASTAPI_APPS_DIR)/$(APP)" ]; then \
+		echo "$(RED)Error: App '$(APP)' not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)⚠️  This will stamp the database for $(APP) with revision $(REV) without running migrations.$(NC)"
+	@echo "$(YELLOW)⚠️  Use this only if the database already has the tables from this revision!$(NC)"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+		echo "$(BLUE)Stamping database with revision $(REV) for $(APP)...$(NC)"; \
+		cd $(FASTAPI_APPS_DIR)/$(APP) && ./venv/bin/alembic stamp $(REV); \
+		echo "$(GREEN)✅ Database stamped with $(REV).$(NC)"; \
+	else \
+		echo "$(RED)❌ Stamp cancelled.$(NC)"; \
+		exit 1; \
+	fi
+
+# ============================================================================
+# Utility Targets
+# ============================================================================
+
+# Default target
+.DEFAULT_GOAL := help

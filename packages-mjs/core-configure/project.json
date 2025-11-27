@@ -1,0 +1,64 @@
+{
+  "name": "@internal/core-configure",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-configure/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/core-configure"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/core-configure"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/core-configure"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": [
+        "{projectRoot}/coverage"
+      ],
+      "options": {
+        "config": "packages-mjs/core-configure/vitest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/core-configure"
+      }
+    }
+  },
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:1"
+  ],
+  "implicitDependencies": [
+    "@internal/core-exceptions"
+  ]
+}

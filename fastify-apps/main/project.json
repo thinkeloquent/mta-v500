@@ -1,0 +1,37 @@
+{
+  "name": "@internal/fastify-main",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/main",
+  "projectType": "application",
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/skeleton"
+  ],
+  "targets": {
+    "lint": {},
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastify-apps/main"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run start",
+        "cwd": "fastify-apps/main"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "fastify-apps/main"
+      }
+    }
+  }
+}

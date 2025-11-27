@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Endpoints - Basic Auth Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .endpoint h3 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+        .endpoint p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .endpoint a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .endpoint a:hover {
+            background: #0056b3;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .credentials {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Debug Endpoints - Basic Authentication Test</h1>
+
+        <div class="info-box">
+            <strong>ℹ️ How it works:</strong>
+            <ol>
+                <li>Click any link below</li>
+                <li>Your browser will show a login dialog</li>
+                <li>Enter the credentials shown below</li>
+                <li>The endpoint data will be displayed</li>
+            </ol>
+        </div>
+
+        <div class="credentials">
+            <strong>📝 Default Credentials:</strong><br>
+            Username: <code>admin</code><br>
+            Password: <code>debug</code> (development) or your configured password
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Security Note:</strong> These endpoints expose sensitive information and should only be used in development environments. In production, ensure DEBUG_AUTH_PASSWORD is set to a strong password.
+        </div>
+
+        <h2>Environment Secrets Endpoints</h2>
+
+        <div class="endpoint">
+            <h3>GET /debug/env-info</h3>
+            <p>View environment secrets file metadata (safest - no secret values exposed)</p>
+            <a href="/debug/env-info" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <div class="endpoint">
+            <h3>GET /debug/env-namespaces</h3>
+            <p>List all available environment namespaces</p>
+            <a href="/debug/env-namespaces" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <div class="endpoint">
+            <h3>GET /debug/env-namespaces?include_vars=true</h3>
+            <p>List namespaces with masked variable values</p>
+            <a href="/debug/env-namespaces?include_vars=true" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <div class="endpoint">
+            <h3>GET /debug/env-global?mask_values=true</h3>
+            <p>View global environment variables (masked)</p>
+            <a href="/debug/env-global?mask_values=true" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <div class="endpoint">
+            <h3>GET /debug/env-secrets</h3>
+            <p><strong>⚠️ Exposes raw secrets!</strong> View raw environment secrets file content</p>
+            <a href="/debug/env-secrets" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <h2>Vault Secrets Endpoints</h2>
+
+        <div class="endpoint">
+            <h3>GET /debug/vault-info</h3>
+            <p>View vault secrets file metadata (safest - no secret values exposed)</p>
+            <a href="/debug/vault-info" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <div class="endpoint">
+            <h3>GET /debug/vault-secrets</h3>
+            <p><strong>⚠️ Exposes raw secrets!</strong> View raw vault secrets file content</p>
+            <a href="/debug/vault-secrets" target="_blank">Test Endpoint →</a>
+        </div>
+
+        <h2>Using JavaScript/Fetch</h2>
+
+        <div class="endpoint">
+            <h3>Fetch with Credentials</h3>
+            <p>Test authentication using JavaScript</p>
+            <button onclick="testFetch()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Test with JavaScript
+            </button>
+            <pre id="fetch-result" style="margin-top: 10px; padding: 10px; background: #f4f4f4; border-radius: 4px; max-height: 300px; overflow: auto;"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function testFetch() {
+            const resultEl = document.getElementById('fetch-result');
+            resultEl.textContent = 'Fetching...';
+
+            // Prompt for credentials
+            const username = prompt('Enter username:', 'admin');
+            if (!username) {
+                resultEl.textContent = 'Cancelled';
+                return;
+            }
+
+            const password = prompt('Enter password:', 'debug');
+            if (!password) {
+                resultEl.textContent = 'Cancelled';
+                return;
+            }
+
+            try {
+                // Encode credentials
+                const credentials = btoa(`${username}:${password}`);
+
+                // Make request
+                const response = await fetch('/debug/env-info', {
+                    headers: {
+                        'Authorization': `Basic ${credentials}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultEl.textContent = '✓ Success!\n\n' + JSON.stringify(data, null, 2);
+                } else {
+                    resultEl.textContent = `✗ Failed: ${response.status} ${response.statusText}`;
+                }
+            } catch (error) {
+                resultEl.textContent = `✗ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

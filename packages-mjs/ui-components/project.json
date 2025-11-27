@@ -1,0 +1,31 @@
+{
+  "name": "@internal/ui-components",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/ui-components/src",
+  "projectType": "library",
+  "tags": [
+    "type:library",
+    "scope:ui",
+    "level:0"
+  ],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages-mjs/ui-components"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "packages-mjs/ui-components"
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@internal/app_google_gemini_openai_chat_completions-frontend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastapi-apps/app_google_gemini_openai_chat_completions/frontend/src",
+  "projectType": "application",
+  "tags": [
+    "type:frontend",
+    "scope:fastapi"
+  ],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "npm run build",
+        "cwd": "fastapi-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastapi-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "fastapi-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run preview",
+        "cwd": "fastapi-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    }
+  }
+}

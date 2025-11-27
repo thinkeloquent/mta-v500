@@ -1,0 +1,37 @@
+{
+  "name": "@internal/fastify-rule-tree-table",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/rule-tree-table/src",
+  "projectType": "application",
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/skeleton"
+  ],
+  "targets": {
+    "lint": {},
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:dev",
+        "cwd": "fastify-apps/rule-tree-table"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:start",
+        "cwd": "fastify-apps/rule-tree-table"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "fastify-apps/rule-tree-table"
+      }
+    }
+  }
+}

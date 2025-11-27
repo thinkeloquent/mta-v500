@@ -1,0 +1,185 @@
+packages-mjs/skeleton/examples
+packages-mjs/core-static-app/*.md
+SPEC
+__PLAY*__
+__LLM*__
+__REQ*__
+__TESTDATA__
+k8s
+
+*.md
+*.lock
+*.md
+*.env*
+*.txt
+*test-results/
+*.pytest_cache/
+.pytest_cache/
+*playwright-report/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+__LLM__
+__STAGE__
+__NOTES__
+# C extensions
+*.claude
+*.Claude
+*.md
+
+*.so
+*.lock
+*.metadata
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Poetry
+!poetry.lock
+!README.md
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Prevent compiled artifacts in src directories (should only be in dist/)
+packages-mjs/*/src/**/*.js
+packages-mjs/*/src/**/*.d.ts
+packages-mjs/*/src/**/*.js.map
+packages-mjs/*/src/**/*.d.ts.map
+common/types/typescript/*.js
+common/types/typescript/*.d.ts
+common/types/typescript/*.js.map
+common/types/typescript/*.d.ts.map
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pino-*.log
+
+# Testing
+.vitest/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Nx
+.nx/cache
+.nx/workspace-data
+nx-cloud.env
+vault_secrets
+
+rust-ast-analyzer/*.json
+rust-ast-analyzer/target/maturin
+rust-ast-analyzer/target/release
+rust-ast-analyzer/target/debug
+rust-ast-analyzer/target/.rustc_info.json
+!rust-ast-analyzer/target/wheels
+rust-ast-analyzer/target/flycheck0/stderr
+rust-ast-analyzer/target/flycheck0/stdout

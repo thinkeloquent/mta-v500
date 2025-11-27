@@ -1,0 +1,61 @@
+{
+  "name": "@internal/google-gemini-openai-client",
+  "version": "1.0.0",
+  "description": "Google Gemini OpenAI-compatible REST API client with proxy and structured output support",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./client": {
+      "import": "./dist/client.mjs",
+      "default": "./dist/client.mjs"
+    },
+    "./chat": {
+      "import": "./dist/chat.mjs",
+      "default": "./dist/chat.mjs"
+    },
+    "./models": {
+      "import": "./dist/models.mjs",
+      "default": "./dist/models.mjs"
+    },
+    "./utils": {
+      "import": "./dist/utils.mjs",
+      "default": "./dist/utils.mjs"
+    }
+  },
+  "files": [
+    "dist/**/*.mjs"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "gemini",
+    "google",
+    "openai",
+    "api",
+    "llm",
+    "chat",
+    "completion",
+    "esm",
+    "mjs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "undici": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3"
+  }
+}

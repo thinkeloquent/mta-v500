@@ -1,0 +1,27 @@
+{
+  "name": "@internal/fastify-main",
+  "version": "1.0.0",
+  "description": "Main Fastify orchestrator server for MTA",
+  "type": "module",
+  "private": true,
+  "main": "launch.mjs",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@fastify/basic-auth": "^6.2.0",
+    "@internal/fetch-proxy-dispatcher": "workspace:*",
+    "@internal/google-gemini-openai-client": "workspace:*",
+    "@internal/skeleton": "workspace:*",
+    "dotenv": "^16.4.7"
+  },
+  "keywords": [
+    "fastify",
+    "orchestrator",
+    "mta"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

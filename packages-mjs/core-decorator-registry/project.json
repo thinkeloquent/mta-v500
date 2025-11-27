@@ -1,0 +1,30 @@
+{
+  "name": "@internal/core-decorator-registry",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-decorator-registry/src",
+  "projectType": "library",
+  "tags": [
+    "scope:shared",
+    "type:lib"
+  ],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages-mjs/core-decorator-registry"
+      },
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "packages-mjs/core-decorator-registry"
+      }
+    }
+  }
+}

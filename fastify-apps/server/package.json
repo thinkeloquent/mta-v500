@@ -1,0 +1,26 @@
+{
+  "name": "@internal/fastify-server",
+  "version": "1.0.0",
+  "description": "Server launcher that extends fastify-main for external imports",
+  "type": "module",
+  "private": true,
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@internal/fastify-main": "workspace:*",
+    "@internal/fastify-ai-sdk-chat": "workspace:*"
+  },
+  "keywords": [
+    "fastify",
+    "server",
+    "launcher"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

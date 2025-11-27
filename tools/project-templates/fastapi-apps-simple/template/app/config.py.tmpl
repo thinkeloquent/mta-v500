@@ -1,0 +1,119 @@
+"""
+Application configuration using Pydantic Settings.
+Environment variables are loaded from system environment (not .env files).
+"""
+
+import os
+from functools import lru_cache
+from typing import Optional
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """
+    Application settings loaded from system environment variables.
+
+    As per project requirements, use system env vars:
+    - POSTGRES_HOST
+    - POSTGRES_PORT
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
+    - POSTGRES_DB
+    - POSTGRES_SCHEMA
+    - REDIS_HOST
+    - REDIS_PORT
+    - REDIS_USERNAME (optional)
+    - REDIS_PASSWORD (optional)
+    - REDIS_DB
+    """
+
+    # Database Configuration
+    POSTGRES_HOST: str = os.environ.get("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: int = int(os.environ.get("POSTGRES_PORT", "5432"))
+    POSTGRES_USER: str = os.environ.get("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.environ.get("POSTGRES_PASSWORD", "")
+    POSTGRES_DB: str = os.environ.get("POSTGRES_DB", "{{APP_NAME_SNAKE}}")
+    POSTGRES_SCHEMA: str = os.environ.get("POSTGRES_SCHEMA", "public")
+
+    # Redis Configuration
+    REDIS_HOST: str = os.environ.get("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.environ.get("REDIS_PORT", "6379"))
+    REDIS_USERNAME: Optional[str] = os.environ.get("REDIS_USERNAME")
+    REDIS_PASSWORD: Optional[str] = os.environ.get("REDIS_PASSWORD")
+    REDIS_DB: int = int(os.environ.get("REDIS_DB", "0"))
+    REDIS_MAX_CONNECTIONS: int = 10
+    REDIS_SOCKET_TIMEOUT: int = 5
+
+    # Application Configuration
+    APP_NAME: str = "{{APP_NAME_TITLE}} API"
+    APP_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = os.environ.get("ENVIRONMENT", os.environ.get("NODE_ENV", "development"))
+    PORT: int = int(os.environ.get("PORT", "8080"))
+    DEBUG: bool = ENVIRONMENT == "development"
+
+    # Database Pool Configuration
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 0
+    DB_POOL_PRE_PING: bool = True
+
+    # API Configuration
+    API_PREFIX: str = "/api"
+    CORS_ORIGINS: list = ["*"]
+
+    # Figma Token (optional)
+    FIGMA_TOKEN: Optional[str] = os.environ.get("FIGMA_TOKEN")
+
+    @property
+    def database_url(self) -> str:
+        """
+        Construct async PostgreSQL database URL.
+        Uses asyncpg driver for SQLAlchemy async operations.
+        """
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def sync_database_url(self) -> str:
+        """
+        Construct sync PostgreSQL database URL for Alembic migrations.
+        Uses psycopg2 driver.
+        """
+        return (
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def redis_url(self) -> str:
+        """
+        Construct Redis connection URL from individual components.
+        Format: redis://[username:password@]host:port/db
+        """
+        auth = ""
+        if self.REDIS_USERNAME and self.REDIS_PASSWORD:
+            auth = f"{self.REDIS_USERNAME}:{self.REDIS_PASSWORD}@"
+        elif self.REDIS_PASSWORD:
+            auth = f":{self.REDIS_PASSWORD}@"
+
+        return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    class Config:
+        case_sensitive = True
+        # Don't load from .env file - use system environment only
+        env_file = None
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """
+    Get cached settings instance.
+    Uses lru_cache to ensure singleton pattern.
+    """
+    return Settings()
+
+
+# Export settings instance
+settings = get_settings()

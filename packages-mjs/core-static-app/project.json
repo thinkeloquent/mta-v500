@@ -1,0 +1,48 @@
+{
+  "name": "@internal/core-static-app",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-static-app/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/core-static-app"
+      }
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/core-static-app"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/core-static-app"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/core-static-app"
+      }
+    }
+  },
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:0"
+  ],
+  "implicitDependencies": [
+    "@internal/core-decorator-registry"
+  ]
+}

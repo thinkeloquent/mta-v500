@@ -1,0 +1,34 @@
+{
+  "name": "@mta/npm-pkg-versions-installed",
+  "version": "1.0.0",
+  "description": "NPM package scanner that analyzes installed package versions across workspaces",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "npm-pkg-versions-installed": "./index.mjs"
+  },
+  "scripts": {
+    "scan": "node index.mjs",
+    "scan:json": "node index.mjs --json",
+    "scan:quiet": "node index.mjs --quiet"
+  },
+  "keywords": [
+    "npm",
+    "package",
+    "scanner",
+    "versions",
+    "workspace",
+    "monorepo",
+    "lint"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "glob": "^11.0.3",
+    "semver": "^7.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

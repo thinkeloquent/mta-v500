@@ -1,0 +1,63 @@
+{
+  "name": "@internal/vault-secret-hydrator",
+  "version": "0.1.2",
+  "description": "TypeScript library for parsing Vault secrets with file-backed secret support",
+  "license": "MIT",
+  "author": "ThinkEloquent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosmarte/mta-multi-tenant-application.git",
+    "directory": "external/vault-secret-hydrator"
+  },
+  "homepage": "https://github.com/carlosmarte/mta-multi-tenant-application#readme",
+  "bugs": {
+    "url": "https://github.com/carlosmarte/mta-multi-tenant-application/issues"
+  },
+  "keywords": [
+    "vault",
+    "secrets",
+    "parser",
+    "configuration",
+    "environment",
+    "security",
+    "typescript",
+    "nodejs"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "properties-parser": "^0.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

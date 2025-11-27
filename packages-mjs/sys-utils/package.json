@@ -1,0 +1,48 @@
+{
+  "name": "@internal/sys-utils",
+  "version": "1.0.0",
+  "description": "System utilities for OS/Platform info and environment handling",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./platform": {
+      "import": "./dist/platform.mjs",
+      "default": "./dist/platform.mjs"
+    },
+    "./env": {
+      "import": "./dist/env.mjs",
+      "default": "./dist/env.mjs"
+    }
+  },
+  "files": [
+    "dist/**/*.mjs"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "mta",
+    "system",
+    "utils",
+    "platform",
+    "environment",
+    "esm",
+    "mjs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3"
+  }
+}

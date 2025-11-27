@@ -1,0 +1,37 @@
+Generic single-database configuration with async SQLAlchemy.
+
+This directory contains Alembic migration scripts for the application.
+
+## Creating Migrations
+
+To create a new migration:
+
+    make migrate-create MSG="Add new table"
+
+## Applying Migrations
+
+To apply all pending migrations:
+
+    make migrate-upgrade
+
+## Checking Status
+
+To see current migration status:
+
+    make migrate
+
+## Downgrading
+
+To downgrade one migration:
+
+    make migrate-downgrade
+
+To downgrade to a specific revision:
+
+    make migrate-downgrade-to REV='revision_id'
+
+## Notes
+
+- Each app uses its own version table (alembic_version_app_google_gemini_openai_chat_completions)
+- Migrations use system environment variables for database connection
+- Import all models in app/models/__init__.py for autogenerate to detect them

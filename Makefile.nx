@@ -1,0 +1,355 @@
+# Makefile.nx - Nx CI/CD Management
+# Usage: make -f Makefile.nx <target>
+
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+
+# Colors for output
+CYAN := \033[36m
+GREEN := \033[32m
+YELLOW := \033[33m
+RED := \033[31m
+RESET := \033[0m
+
+# Nx configuration
+NX := npx nx
+NX_PARALLEL := 3
+NX_BASE := main
+NX_HEAD := HEAD
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+# # Show all commands
+# make -f Makefile.nx help
+
+# # CI Pipeline
+# make -f Makefile.nx ci              # Full CI: install, lint, typecheck, test, build
+# make -f Makefile.nx ci-affected     # CI for affected projects only
+
+# # Build
+# make -f Makefile.nx build           # Build all
+# make -f Makefile.nx build-affected  # Build affected only
+# make -f Makefile.nx build-prod      # Production build
+
+# # Test
+# make -f Makefile.nx test            # Run all tests
+# make -f Makefile.nx test-affected   # Test affected only
+# make -f Makefile.nx test-ci         # Test with coverage
+
+# # Lint & Format
+# make -f Makefile.nx lint            # Lint all
+# make -f Makefile.nx check-fix       # Lint + format fix
+
+# # Graph & Info
+# make -f Makefile.nx graph           # Open dependency graph
+# make -f Makefile.nx projects        # List all projects
+
+# # Cache
+# make -f Makefile.nx cache-clear     # Clear Nx cache
+# make -f Makefile.nx reset           # Reset workspace
+
+.PHONY: help
+help: ## Show this help message
+	@echo ""
+	@echo "$(CYAN)Nx CI/CD Management$(RESET)"
+	@echo "$(CYAN)===================$(RESET)"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+
+# =============================================================================
+# INSTALLATION & SETUP
+# =============================================================================
+
+.PHONY: install
+install: ## Install all dependencies with npm
+	@echo "$(CYAN)Installing dependencies...$(RESET)"
+	npm install
+
+.PHONY: install-ci
+install-ci: ## Install dependencies for CI (frozen lockfile)
+	@echo "$(CYAN)Installing dependencies (CI mode)...$(RESET)"
+	npm ci
+
+.PHONY: clean-install
+clean-install: ## Clean and reinstall all dependencies
+	@echo "$(CYAN)Cleaning and reinstalling...$(RESET)"
+	rm -rf node_modules
+	rm -f package-lock.json
+	npm install
+
+# =============================================================================
+# BUILD COMMANDS
+# =============================================================================
+
+.PHONY: build
+build: ## Build all projects
+	@echo "$(CYAN)Building all projects...$(RESET)"
+	$(NX) run-many -t build --parallel=$(NX_PARALLEL)
+
+.PHONY: build-affected
+build-affected: ## Build only affected projects
+	@echo "$(CYAN)Building affected projects...$(RESET)"
+	$(NX) affected -t build --base=$(NX_BASE) --head=$(NX_HEAD) --parallel=$(NX_PARALLEL)
+
+.PHONY: build-prod
+build-prod: ## Build all projects for production
+	@echo "$(CYAN)Building all projects (production)...$(RESET)"
+	NODE_ENV=production $(NX) run-many -t build --parallel=$(NX_PARALLEL)
+
+.PHONY: build-libs
+build-libs: ## Build only library projects
+	@echo "$(CYAN)Building libraries...$(RESET)"
+	$(NX) run-many -t build --projects=tag:type:library --parallel=$(NX_PARALLEL)
+
+.PHONY: build-apps
+build-apps: ## Build only application projects
+	@echo "$(CYAN)Building applications...$(RESET)"
+	$(NX) run-many -t build --projects=tag:type:app --parallel=$(NX_PARALLEL)
+
+.PHONY: build-frontends
+build-frontends: ## Build only frontend projects
+	@echo "$(CYAN)Building frontends...$(RESET)"
+	$(NX) run-many -t build --projects=tag:type:frontend --parallel=$(NX_PARALLEL)
+
+# =============================================================================
+# TEST COMMANDS
+# =============================================================================
+
+.PHONY: test
+test: ## Run all tests
+	@echo "$(CYAN)Running all tests...$(RESET)"
+	$(NX) run-many -t test --parallel=$(NX_PARALLEL)
+
+.PHONY: test-affected
+test-affected: ## Run tests for affected projects only
+	@echo "$(CYAN)Running tests for affected projects...$(RESET)"
+	$(NX) affected -t test --base=$(NX_BASE) --head=$(NX_HEAD) --parallel=$(NX_PARALLEL)
+
+.PHONY: test-ci
+test-ci: ## Run tests in CI mode (with coverage)
+	@echo "$(CYAN)Running tests (CI mode)...$(RESET)"
+	$(NX) run-many -t test --parallel=$(NX_PARALLEL) --coverage
+
+.PHONY: test-watch
+test-watch: ## Run tests in watch mode
+	@echo "$(CYAN)Running tests (watch mode)...$(RESET)"
+	$(NX) run-many -t test --watch
+
+# =============================================================================
+# LINT & FORMAT
+# =============================================================================
+
+.PHONY: lint
+lint: ## Lint all projects
+	@echo "$(CYAN)Linting all projects...$(RESET)"
+	npx biome lint .
+
+.PHONY: lint-fix
+lint-fix: ## Lint and fix all projects
+	@echo "$(CYAN)Linting and fixing...$(RESET)"
+	npx biome lint --write .
+
+.PHONY: format
+format: ## Format all files
+	@echo "$(CYAN)Formatting all files...$(RESET)"
+	npx biome format --write .
+
+.PHONY: format-check
+format-check: ## Check formatting without making changes
+	@echo "$(CYAN)Checking format...$(RESET)"
+	npx biome format .
+
+.PHONY: check
+check: ## Run biome check (lint + format)
+	@echo "$(CYAN)Running biome check...$(RESET)"
+	npx biome check .
+
+.PHONY: check-fix
+check-fix: ## Run biome check and fix
+	@echo "$(CYAN)Running biome check with fixes...$(RESET)"
+	npx biome check --write .
+
+# =============================================================================
+# TYPE CHECKING
+# =============================================================================
+
+.PHONY: typecheck
+typecheck: ## Run type checking for all projects
+	@echo "$(CYAN)Type checking all projects...$(RESET)"
+	$(NX) run-many -t type-check --parallel=$(NX_PARALLEL)
+
+.PHONY: typecheck-affected
+typecheck-affected: ## Run type checking for affected projects
+	@echo "$(CYAN)Type checking affected projects...$(RESET)"
+	$(NX) affected -t type-check --base=$(NX_BASE) --head=$(NX_HEAD) --parallel=$(NX_PARALLEL)
+
+# =============================================================================
+# CI PIPELINE COMMANDS
+# =============================================================================
+
+.PHONY: ci
+ci: install-ci lint typecheck test-ci build ## Run full CI pipeline
+	@echo "$(GREEN)CI pipeline completed successfully!$(RESET)"
+
+.PHONY: ci-affected
+ci-affected: install-ci lint-affected typecheck-affected test-affected build-affected ## Run CI pipeline for affected projects only
+	@echo "$(GREEN)CI pipeline (affected) completed successfully!$(RESET)"
+
+.PHONY: lint-affected
+lint-affected: ## Lint affected projects only
+	@echo "$(CYAN)Linting affected projects...$(RESET)"
+	$(NX) affected -t lint --base=$(NX_BASE) --head=$(NX_HEAD)
+
+.PHONY: validate
+validate: lint typecheck test ## Validate code (lint, typecheck, test)
+	@echo "$(GREEN)Validation completed successfully!$(RESET)"
+
+.PHONY: validate-affected
+validate-affected: lint-affected typecheck-affected test-affected ## Validate affected code only
+	@echo "$(GREEN)Validation (affected) completed successfully!$(RESET)"
+
+# =============================================================================
+# CACHE MANAGEMENT
+# =============================================================================
+
+.PHONY: cache-clear
+cache-clear: ## Clear Nx cache
+	@echo "$(YELLOW)Clearing Nx cache...$(RESET)"
+	rm -rf .nx/cache
+	@echo "$(GREEN)Cache cleared!$(RESET)"
+
+.PHONY: cache-status
+cache-status: ## Show cache status
+	@echo "$(CYAN)Cache status:$(RESET)"
+	@du -sh .nx/cache 2>/dev/null || echo "No cache found"
+
+.PHONY: reset
+reset: cache-clear ## Reset Nx workspace (clear cache and daemon)
+	@echo "$(YELLOW)Resetting Nx workspace...$(RESET)"
+	$(NX) reset
+	@echo "$(GREEN)Workspace reset!$(RESET)"
+
+# =============================================================================
+# DEPENDENCY GRAPH
+# =============================================================================
+
+.PHONY: graph
+graph: ## Open dependency graph in browser
+	@echo "$(CYAN)Opening dependency graph...$(RESET)"
+	$(NX) graph
+
+.PHONY: graph-affected
+graph-affected: ## Show affected projects graph
+	@echo "$(CYAN)Opening affected projects graph...$(RESET)"
+	$(NX) affected:graph --base=$(NX_BASE) --head=$(NX_HEAD)
+
+.PHONY: graph-json
+graph-json: ## Export dependency graph as JSON
+	@echo "$(CYAN)Exporting dependency graph...$(RESET)"
+	$(NX) graph --file=nx-graph.json
+	@echo "$(GREEN)Graph exported to nx-graph.json$(RESET)"
+
+# =============================================================================
+# PROJECT INFORMATION
+# =============================================================================
+
+.PHONY: projects
+projects: ## List all projects
+	@echo "$(CYAN)All projects:$(RESET)"
+	@$(NX) show projects
+
+.PHONY: projects-affected
+projects-affected: ## List affected projects
+	@echo "$(CYAN)Affected projects:$(RESET)"
+	@$(NX) show projects --affected --base=$(NX_BASE) --head=$(NX_HEAD)
+
+.PHONY: projects-libs
+projects-libs: ## List library projects
+	@echo "$(CYAN)Library projects:$(RESET)"
+	@$(NX) show projects --projects=tag:type:library
+
+.PHONY: projects-apps
+projects-apps: ## List application projects
+	@echo "$(CYAN)Application projects:$(RESET)"
+	@$(NX) show projects --projects=tag:type:app
+
+.PHONY: projects-frontends
+projects-frontends: ## List frontend projects
+	@echo "$(CYAN)Frontend projects:$(RESET)"
+	@$(NX) show projects --projects=tag:type:frontend
+
+.PHONY: project-info
+project-info: ## Show project info (usage: make project-info PROJECT=name)
+	@echo "$(CYAN)Project info for $(PROJECT):$(RESET)"
+	$(NX) show project $(PROJECT)
+
+# =============================================================================
+# DEVELOPMENT
+# =============================================================================
+
+.PHONY: dev
+dev: ## Start development servers for all projects
+	@echo "$(CYAN)Starting development servers...$(RESET)"
+	$(NX) run-many -t dev
+
+.PHONY: clean
+clean: ## Clean all build artifacts
+	@echo "$(CYAN)Cleaning build artifacts...$(RESET)"
+	$(NX) run-many -t clean --parallel=$(NX_PARALLEL)
+	@echo "$(GREEN)Clean completed!$(RESET)"
+
+.PHONY: clean-all
+clean-all: clean cache-clear ## Clean all artifacts and cache
+	@echo "$(CYAN)Cleaning all artifacts and cache...$(RESET)"
+	rm -rf node_modules
+	rm -rf */*/node_modules
+	rm -rf */*/*/node_modules
+	@echo "$(GREEN)Full clean completed!$(RESET)"
+
+# =============================================================================
+# DOCKER CI INTEGRATION
+# =============================================================================
+
+.PHONY: docker-ci-build
+docker-ci-build: ## Build for Docker CI (production, no cache)
+	@echo "$(CYAN)Building for Docker CI...$(RESET)"
+	NODE_ENV=production $(NX) run-many -t build --parallel=$(NX_PARALLEL) --skip-nx-cache
+
+.PHONY: docker-ci-test
+docker-ci-test: ## Run tests for Docker CI
+	@echo "$(CYAN)Running tests for Docker CI...$(RESET)"
+	$(NX) run-many -t test --parallel=$(NX_PARALLEL) --skip-nx-cache
+
+# =============================================================================
+# RELEASE & VERSIONING
+# =============================================================================
+
+.PHONY: version-check
+version-check: ## Check versions of all projects
+	@echo "$(CYAN)Project versions:$(RESET)"
+	@for pkg in $$(find packages-mjs fastify-apps fastapi-apps -name "package.json" -not -path "*/node_modules/*" 2>/dev/null); do \
+		name=$$(grep -o '"name": *"[^"]*"' "$$pkg" | cut -d'"' -f4); \
+		version=$$(grep -o '"version": *"[^"]*"' "$$pkg" | cut -d'"' -f4); \
+		echo "  $$name: $$version"; \
+	done
+
+# =============================================================================
+# UTILITIES
+# =============================================================================
+
+.PHONY: print-affected
+print-affected: ## Print affected projects (for CI scripting)
+	@$(NX) show projects --affected --base=$(NX_BASE) --head=$(NX_HEAD) --plain
+
+.PHONY: run
+run: ## Run a specific target (usage: make run TARGET=build PROJECT=name)
+	@echo "$(CYAN)Running $(TARGET) for $(PROJECT)...$(RESET)"
+	$(NX) run $(PROJECT):$(TARGET)
+
+.PHONY: run-many
+run-many: ## Run a target for multiple projects (usage: make run-many TARGET=build)
+	@echo "$(CYAN)Running $(TARGET) for all projects...$(RESET)"
+	$(NX) run-many -t $(TARGET) --parallel=$(NX_PARALLEL)

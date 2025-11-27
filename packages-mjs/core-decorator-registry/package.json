@@ -1,0 +1,55 @@
+{
+  "name": "@internal/core-decorator-registry",
+  "version": "1.0.4",
+  "description": "Global decorator registry for tracking Fastify decorator lifecycle",
+  "license": "MIT",
+  "author": "ThinkEloquent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosmarte/mta-multi-tenant-application.git",
+    "directory": "external/core-decorator-registry"
+  },
+  "homepage": "https://github.com/carlosmarte/mta-multi-tenant-application#readme",
+  "bugs": {
+    "url": "https://github.com/carlosmarte/mta-multi-tenant-application/issues"
+  },
+  "keywords": [
+    "fastify",
+    "decorator",
+    "registry",
+    "tracking"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

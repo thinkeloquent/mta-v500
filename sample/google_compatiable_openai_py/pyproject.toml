@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "google-compatible-openai"
+version = "0.1.0"
+description = "Google Gemini API client using OpenAI-compatible interface"
+authors = ["Developer"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+openai = ">=1.0.0"
+httpx = ">=0.25.0"
+rich = "^14.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

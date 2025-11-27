@@ -1,0 +1,45 @@
+{
+  "name": "@internal/core-no-cache",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-no-cache/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/core-no-cache"
+      }
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/core-no-cache"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/core-no-cache"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/core-no-cache"
+      }
+    }
+  },
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:0"
+  ]
+}

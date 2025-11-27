@@ -1,0 +1,54 @@
+{
+  "name": "@internal/core-prisma-utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-prisma-utils/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/core-prisma-utils"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/core-prisma-utils"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/core-prisma-utils"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/core-prisma-utils"
+      }
+    }
+  },
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:1"
+  ],
+  "implicitDependencies": [
+    "@internal/core-exceptions"
+  ]
+}

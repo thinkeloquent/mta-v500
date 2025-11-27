@@ -1,0 +1,37 @@
+{
+  "name": "@internal/fastify-ai-sdk-chat",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/ai_sdk_chat/src",
+  "projectType": "application",
+  "tags": [
+    "type:app",
+    "scope:fastify"
+  ],
+  "implicitDependencies": [
+    "@internal/skeleton"
+  ],
+  "targets": {
+    "lint": {},
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:dev",
+        "cwd": "fastify-apps/ai_sdk_chat"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run app:start",
+        "cwd": "fastify-apps/ai_sdk_chat"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "fastify-apps/ai_sdk_chat"
+      }
+    }
+  }
+}

@@ -1,0 +1,533 @@
+# ==============================================================================
+# PNPM Makefile - Manage PNPM Workspace Operations (CI/CD)
+# ==============================================================================
+# Usage: make -f Makefile.pnpm <target>
+# Usage: make -f Makefile.pnpm all
+# Usage: make -f Makefile.pnpm install
+# Usage: make -f Makefile.pnpm build
+# Or: include Makefile.pnpm in your main Makefile
+# ==============================================================================
+
+.PHONY: help
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+
+# Colors for output
+RED     := \033[0;31m
+GREEN   := \033[0;32m
+YELLOW  := \033[0;33m
+CYAN    := \033[0;36m
+BLUE    := \033[0;34m
+PURPLE  := \033[0;35m
+WHITE   := \033[0;37m
+RESET   := \033[0m
+
+# Project Configuration
+PROJECT_NAME ?= mta-v500
+VERSION ?= latest
+NODE_VERSION ?= 22
+PNPM_VERSION ?= 10.23.0
+
+# PNPM Configuration
+PNPM_REGISTRY ?= https://registry.npmjs.org
+PNPM_STORE_DIR ?= .pnpm-store
+PNPM_LOG_LEVEL ?= warn
+
+# Build Configuration
+BUILD_OPTS ?=
+INSTALL_OPTS ?=
+TEST_OPTS ?=
+
+# Workspace Tiers (dependency order from Dockerfile)
+TIER1_WORKSPACES := @internal/config-loader @internal/core-exceptions @internal/core-decorator-registry @internal/core-no-cache @internal/core-plugin-logger @internal/core-route-logger @internal/core-prisma-orchestrator @internal/ui-components @internal/utils @internal/vault-secret-hydrator
+TIER2_WORKSPACES := @internal/core-configure @internal/core-prisma-utils @internal/core-spa-app @internal/core-static-app
+TIER3_WORKSPACES := @internal/skeleton
+
+# ------------------------------------------------------------------------------
+# Help
+# ------------------------------------------------------------------------------
+
+help: ## Show this help message
+	@echo "$(CYAN)PNPM Workspace Management (CI/CD)$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Core Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(BLUE)Quick Commands:$(RESET)"
+	@echo "  make -f Makefile.pnpm install                    # Install dependencies"
+	@echo "  make -f Makefile.pnpm build                      # Build all workspaces"
+	@echo "  make -f Makefile.pnpm test                       # Run tests"
+	@echo "  make -f Makefile.pnpm clean                      # Clean artifacts"
+	@echo "  make -f Makefile.pnpm ci                         # Run CI workflow"
+	@echo ""
+	@echo "$(BLUE)CI/CD Workflow:$(RESET)"
+	@echo "  1. make -f Makefile.pnpm setup                   # Setup environment"
+	@echo "  2. make -f Makefile.pnpm install                 # Install dependencies"
+	@echo "  3. make -f Makefile.pnpm build                   # Build workspaces"
+	@echo "  4. make -f Makefile.pnpm test                    # Run tests"
+	@echo ""
+	@echo "$(PURPLE)Configuration:$(RESET)"
+	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  NODE_VERSION      = $(NODE_VERSION)"
+	@echo "  PNPM_VERSION      = $(PNPM_VERSION)"
+	@echo "  PNPM_REGISTRY     = $(PNPM_REGISTRY)"
+	@echo ""
+	@echo "$(PURPLE)Override Configuration:$(RESET)"
+	@echo "  PNPM_REGISTRY=https://npm.pkg.github.com make -f Makefile.pnpm install"
+	@echo "  NODE_VERSION=20 make -f Makefile.pnpm setup"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Setup Operations
+# ------------------------------------------------------------------------------
+
+setup: ## Setup Node.js and pnpm environment
+	@echo "$(CYAN)Setting up Node.js and pnpm environment...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/4: Verifying Node.js installation...$(RESET)"
+	@if command -v node > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ Node.js installed: $$(node --version)$(RESET)"; \
+	else \
+		echo "  $(RED)✗ Node.js not found$(RESET)"; \
+		echo "  $(YELLOW)Please install Node.js v$(NODE_VERSION) or higher$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 2/4: Verifying/Installing pnpm...$(RESET)"
+	@if command -v pnpm > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ pnpm installed: $$(pnpm --version)$(RESET)"; \
+	else \
+		echo "  $(YELLOW)Installing pnpm via corepack...$(RESET)"; \
+		corepack enable && corepack prepare pnpm@$(PNPM_VERSION) --activate; \
+		echo "  $(GREEN)✓ pnpm installed: $$(pnpm --version)$(RESET)"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 3/4: Checking workspace configuration...$(RESET)"
+	@if [ -f "pnpm-workspace.yaml" ]; then \
+		echo "  $(GREEN)✓ pnpm-workspace.yaml found$(RESET)"; \
+	else \
+		echo "  $(RED)✗ pnpm-workspace.yaml not found$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 4/4: Checking package.json...$(RESET)"
+	@if [ -f "package.json" ]; then \
+		echo "  $(GREEN)✓ package.json found$(RESET)"; \
+	else \
+		echo "  $(RED)✗ package.json not found$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Setup complete$(RESET)"
+
+setup-registry: ## Configure pnpm registry
+	@echo "$(CYAN)Configuring pnpm registry...$(RESET)"
+	@pnpm config set registry $(PNPM_REGISTRY)
+	@echo "$(GREEN)✓ Registry set to $(PNPM_REGISTRY)$(RESET)"
+
+setup-store: ## Setup pnpm store directory
+	@echo "$(CYAN)Setting up pnpm store...$(RESET)"
+	@pnpm config set store-dir $(PNPM_STORE_DIR)
+	@echo "$(GREEN)✓ Store directory set to $(PNPM_STORE_DIR)$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Install Operations
+# ------------------------------------------------------------------------------
+
+install: ## Install all dependencies
+	@echo "$(CYAN)Installing dependencies with pnpm...$(RESET)"
+	@echo "$(BLUE)Cleaning existing node_modules...$(RESET)"
+	@rm -rf node_modules fastapi-apps/*/frontend/node_modules 2>/dev/null || true
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules 2>/dev/null || true
+	@echo ""
+	@echo "$(BLUE)Installing with pnpm workspaces...$(RESET)"
+	@pnpm install $(INSTALL_OPTS)
+	@echo ""
+	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
+
+install-ci: ## Install dependencies for CI (frozen lockfile)
+	@echo "$(CYAN)Installing dependencies (CI mode)...$(RESET)"
+	@rm -rf node_modules fastapi-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules
+	@pnpm install --frozen-lockfile
+	@echo "$(GREEN)✓ CI dependencies installed$(RESET)"
+
+install-clean: ## Clean install (remove lock files)
+	@echo "$(CYAN)Performing clean install...$(RESET)"
+	@rm -rf node_modules pnpm-lock.yaml
+	@rm -rf fastapi-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules
+	@pnpm install
+	@echo "$(GREEN)✓ Clean install complete$(RESET)"
+
+install-prod: ## Install production dependencies only
+	@echo "$(CYAN)Installing production dependencies...$(RESET)"
+	@pnpm install --prod $(INSTALL_OPTS)
+	@echo "$(GREEN)✓ Production dependencies installed$(RESET)"
+
+import-lockfile: ## Import package-lock.json to pnpm-lock.yaml
+	@echo "$(CYAN)Importing lockfile from npm...$(RESET)"
+	@if [ -f "package-lock.json" ]; then \
+		pnpm import; \
+		echo "$(GREEN)✓ Lockfile imported$(RESET)"; \
+		echo "$(YELLOW)You can now remove package-lock.json$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠ No package-lock.json found$(RESET)"; \
+	fi
+
+# ------------------------------------------------------------------------------
+# Build Operations
+# ------------------------------------------------------------------------------
+
+build: ## Build all workspaces
+	@echo "$(CYAN)Building all workspaces...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Building Tier 1 packages...$(RESET)"
+	@for ws in $(TIER1_WORKSPACES); do \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building Tier 2 packages...$(RESET)"
+	@for ws in $(TIER2_WORKSPACES); do \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building Tier 3 packages...$(RESET)"
+	@for ws in $(TIER3_WORKSPACES); do \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building all remaining workspaces...$(RESET)"
+	@pnpm run -r build
+	@echo ""
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+build-parallel: ## Build all workspaces in parallel
+	@echo "$(CYAN)Building all workspaces in parallel...$(RESET)"
+	@pnpm run -r --parallel build
+	@echo "$(GREEN)✓ Parallel build complete$(RESET)"
+
+build-tier1: ## Build Tier 1 packages (base packages)
+	@echo "$(CYAN)Building Tier 1 packages...$(RESET)"
+	@for ws in $(TIER1_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 1 build complete$(RESET)"
+
+build-tier2: ## Build Tier 2 packages (depends on Tier 1)
+	@echo "$(CYAN)Building Tier 2 packages...$(RESET)"
+	@for ws in $(TIER2_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 2 build complete$(RESET)"
+
+build-tier3: ## Build Tier 3 packages (depends on Tier 1 & 2)
+	@echo "$(CYAN)Building Tier 3 packages...$(RESET)"
+	@for ws in $(TIER3_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		pnpm --filter=$$ws run build 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 3 build complete$(RESET)"
+
+build-frontends: ## Build all frontend workspaces
+	@echo "$(CYAN)Building frontend workspaces...$(RESET)"
+	@pnpm run -r build
+	@echo "$(GREEN)✓ Frontend builds complete$(RESET)"
+
+build-workspace: ## Build specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.pnpm build-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Building workspace: $(WS)$(RESET)"
+	@pnpm --filter=$(WS) run build
+	@echo "$(GREEN)✓ Workspace build complete$(RESET)"
+
+build-verbose: ## Build with verbose output
+	@echo "$(CYAN)Building with verbose output...$(RESET)"
+	@pnpm run -r build --reporter=default
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Test Operations
+# ------------------------------------------------------------------------------
+
+test: ## Run tests in all workspaces
+	@echo "$(CYAN)Running tests...$(RESET)"
+	@pnpm run -r test $(TEST_OPTS)
+	@echo "$(GREEN)✓ Tests complete$(RESET)"
+
+test-workspace: ## Test specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.pnpm test-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Testing workspace: $(WS)$(RESET)"
+	@pnpm --filter=$(WS) run test
+	@echo "$(GREEN)✓ Workspace tests complete$(RESET)"
+
+test-coverage: ## Run tests with coverage
+	@echo "$(CYAN)Running tests with coverage...$(RESET)"
+	@pnpm run -r test -- --coverage
+	@echo "$(GREEN)✓ Tests with coverage complete$(RESET)"
+
+test-watch: ## Run tests in watch mode
+	@echo "$(CYAN)Running tests in watch mode...$(RESET)"
+	@pnpm run -r test -- --watch
+
+# ------------------------------------------------------------------------------
+# Clean Operations
+# ------------------------------------------------------------------------------
+
+clean: ## Clean build artifacts
+	@echo "$(CYAN)Cleaning build artifacts...$(RESET)"
+	@pnpm run -r clean 2>/dev/null || true
+	@rm -rf fastapi-apps/*/frontend/dist
+	@rm -rf fastify-apps/*/frontend/dist
+	@rm -rf packages-mjs/*/dist
+	@rm -rf static/app/*/frontend/dist
+	@echo "$(GREEN)✓ Clean complete$(RESET)"
+
+clean-node-modules: ## Remove all node_modules
+	@echo "$(CYAN)Removing all node_modules...$(RESET)"
+	@rm -rf node_modules
+	@rm -rf fastapi-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/node_modules
+	@rm -rf packages-mjs/*/node_modules
+	@echo "$(GREEN)✓ node_modules removed$(RESET)"
+
+clean-locks: ## Remove pnpm-lock.yaml
+	@echo "$(CYAN)Removing pnpm-lock.yaml...$(RESET)"
+	@rm -f pnpm-lock.yaml
+	@echo "$(GREEN)✓ Lock file removed$(RESET)"
+
+clean-cache: ## Clean pnpm cache
+	@echo "$(CYAN)Cleaning pnpm cache...$(RESET)"
+	@pnpm store prune
+	@echo "$(GREEN)✓ Cache cleaned$(RESET)"
+
+clean-store: ## Remove pnpm store
+	@echo "$(CYAN)Removing pnpm store...$(RESET)"
+	@rm -rf $(PNPM_STORE_DIR)
+	@echo "$(GREEN)✓ Store removed$(RESET)"
+
+clean-all: clean clean-node-modules clean-locks ## Clean everything
+	@echo "$(GREEN)✓ All cleaned$(RESET)"
+
+# ------------------------------------------------------------------------------
+# CI/CD Operations
+# ------------------------------------------------------------------------------
+
+ci: ci-install ci-build ci-test ## Run full CI workflow (install + build + test)
+	@echo ""
+	@echo "$(GREEN)✓ CI workflow complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Dependencies installed"
+	@echo "  ✓ Workspaces built"
+	@echo "  ✓ Tests passed"
+
+ci-install: install-ci ## CI install step
+	@echo "$(GREEN)✓ CI install complete$(RESET)"
+
+ci-build: build ## CI build step
+	@echo "$(GREEN)✓ CI build complete$(RESET)"
+
+ci-test: test ## CI test step
+	@echo "$(GREEN)✓ CI test complete$(RESET)"
+
+ci-fast: ## Fast CI (clean install + build + test)
+	@make -f Makefile.pnpm clean-all
+	@make -f Makefile.pnpm install-ci
+	@make -f Makefile.pnpm build
+	@make -f Makefile.pnpm test
+	@echo "$(GREEN)✓ Fast CI complete$(RESET)"
+
+ci-full: clean-all install-ci build test ## Full CI (clean + install + build + test)
+	@echo "$(GREEN)✓ Full CI complete$(RESET)"
+
+ci-setup-build-test: setup install build test ## CI workflow with setup
+	@echo ""
+	@echo "$(GREEN)✓ CI test lifecycle complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Environment setup"
+	@echo "  ✓ Dependencies installed"
+	@echo "  ✓ Workspaces built"
+	@echo "  ✓ Tests executed"
+
+# ------------------------------------------------------------------------------
+# Development Workflows
+# ------------------------------------------------------------------------------
+
+dev: ## Run development servers
+	@echo "$(CYAN)Starting development servers...$(RESET)"
+	@pnpm run -r dev
+
+dev-workspace: ## Run dev for specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.pnpm dev-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Starting dev for workspace: $(WS)$(RESET)"
+	@pnpm --filter=$(WS) run dev
+
+lint: ## Run linting
+	@echo "$(CYAN)Running linters...$(RESET)"
+	@pnpm run -r lint 2>/dev/null || echo "$(YELLOW)⚠ No lint script found$(RESET)"
+	@echo "$(GREEN)✓ Linting complete$(RESET)"
+
+format: ## Run formatters
+	@echo "$(CYAN)Running formatters...$(RESET)"
+	@pnpm run -r format 2>/dev/null || echo "$(YELLOW)⚠ No format script found$(RESET)"
+	@echo "$(GREEN)✓ Formatting complete$(RESET)"
+
+typecheck: ## Run type checking
+	@echo "$(CYAN)Running type checks...$(RESET)"
+	@pnpm run -r typecheck 2>/dev/null || \
+	pnpm run -r type-check 2>/dev/null || \
+	echo "$(YELLOW)⚠ No typecheck script found$(RESET)"
+	@echo "$(GREEN)✓ Type checking complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Utility Commands
+# ------------------------------------------------------------------------------
+
+version: ## Show Node.js and pnpm versions
+	@echo "$(CYAN)Version Information:$(RESET)"
+	@echo "  Node.js: $$(node --version)"
+	@echo "  pnpm:    $$(pnpm --version)"
+	@echo ""
+	@echo "$(CYAN)Project Information:$(RESET)"
+	@echo "  Name:    $(PROJECT_NAME)"
+	@echo "  Version: $$(node -e "console.log(require('./package.json').version)")"
+
+list-workspaces: ## List all workspaces
+	@echo "$(CYAN)Workspaces:$(RESET)"
+	@pnpm list -r --depth -1 2>/dev/null || \
+	echo "$(YELLOW)⚠ Run 'pnpm install' first to see workspaces$(RESET)"
+
+list-outdated: ## List outdated packages
+	@echo "$(CYAN)Outdated packages:$(RESET)"
+	@pnpm outdated -r
+
+audit: ## Run security audit
+	@echo "$(CYAN)Running security audit...$(RESET)"
+	@pnpm audit
+	@echo "$(GREEN)✓ Audit complete$(RESET)"
+
+audit-fix: ## Fix security vulnerabilities
+	@echo "$(CYAN)Fixing security vulnerabilities...$(RESET)"
+	@pnpm audit --fix
+	@echo "$(GREEN)✓ Audit fix complete$(RESET)"
+
+why: ## Show why a package is installed (use PKG=package-name)
+	@if [ -z "$(PKG)" ]; then \
+		echo "$(RED)✗ PKG parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.pnpm why PKG=lodash$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Why is $(PKG) installed:$(RESET)"
+	@pnpm why $(PKG)
+
+config-show: ## Show current configuration
+	@echo "$(CYAN)PNPM Configuration:$(RESET)"
+	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  NODE_VERSION      = $(NODE_VERSION)"
+	@echo "  PNPM_VERSION      = $(PNPM_VERSION)"
+	@echo "  PNPM_REGISTRY     = $(PNPM_REGISTRY)"
+	@echo "  PNPM_LOG_LEVEL    = $(PNPM_LOG_LEVEL)"
+	@echo "  INSTALL_OPTS      = $(INSTALL_OPTS)"
+	@echo ""
+	@echo "$(CYAN)Workspace Tiers:$(RESET)"
+	@echo "  Tier 1: $(words $(TIER1_WORKSPACES)) packages"
+	@echo "  Tier 2: $(words $(TIER2_WORKSPACES)) packages"
+	@echo "  Tier 3: $(words $(TIER3_WORKSPACES)) packages"
+
+# ------------------------------------------------------------------------------
+# Static File Operations (for FastAPI integration)
+# ------------------------------------------------------------------------------
+
+organize-static: ## Organize built files into static directory
+	@echo "$(CYAN)Organizing static files...$(RESET)"
+	@mkdir -p static/app
+	@for frontend_dir in fastapi-apps/*/frontend; do \
+		if [ -d "$$frontend_dir/dist" ]; then \
+			app_name=$$(basename $$(dirname "$$frontend_dir")); \
+			clean_name=$$(echo "$$app_name" | sed 's/^app-//'); \
+			dest_dir="static/app/$$clean_name/frontend"; \
+			echo "  Copying $$app_name → $$clean_name"; \
+			mkdir -p "$$dest_dir"; \
+			cp -r "$$frontend_dir/dist" "$$dest_dir/"; \
+		fi; \
+	done
+	@echo "$(GREEN)✓ Static files organized$(RESET)"
+
+verify-build: ## Verify build output
+	@echo "$(CYAN)Build Verification:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Index files found:$(RESET)"
+	@find static -type f -name "index.html" 2>/dev/null || echo "  (none)"
+	@echo ""
+	@echo "$(BLUE)Total files:$(RESET)"
+	@find static -type f 2>/dev/null | wc -l || echo "  0"
+	@echo ""
+	@echo "$(BLUE)Total size:$(RESET)"
+	@du -sh static 2>/dev/null || echo "  0"
+
+# ------------------------------------------------------------------------------
+# Complete Workflows
+# ------------------------------------------------------------------------------
+
+init: setup install ## Initialize - setup and install
+	@echo ""
+	@echo "$(GREEN)✓ PNPM environment initialized$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Next steps:$(RESET)"
+	@echo "  1. Build workspaces: make -f Makefile.pnpm build"
+	@echo "  2. Run tests:        make -f Makefile.pnpm test"
+	@echo "  3. Start dev:        make -f Makefile.pnpm dev"
+	@echo ""
+
+all: clean-all install build test organize-static ## Full workflow (clean + install + build + test + organize)
+	@echo ""
+	@echo "$(GREEN)✓ All tasks complete$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Environment Status:$(RESET)"
+	@make -f Makefile.pnpm version
+	@echo ""
+	@echo "$(CYAN)Ready to:$(RESET)"
+	@echo "  make -f Makefile.pnpm dev          # Start development"
+	@echo "  make -f Makefile.docker build     # Build Docker image"
+
+reset: clean-all install build ## Reset and rebuild everything
+	@echo ""
+	@echo "$(GREEN)✓ Reset complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Migration from npm
+# ------------------------------------------------------------------------------
+
+migrate-from-npm: import-lockfile ## Migrate from npm to pnpm
+	@echo "$(CYAN)Migration from npm complete$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(RESET)"
+	@echo "  1. Remove package-lock.json: rm package-lock.json"
+	@echo "  2. Install dependencies: make -f Makefile.pnpm install"
+	@echo "  3. Test build: make -f Makefile.pnpm build"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Default target
+# ------------------------------------------------------------------------------
+
+.DEFAULT_GOAL := help

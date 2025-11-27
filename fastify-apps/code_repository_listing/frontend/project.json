@@ -1,0 +1,37 @@
+{
+  "name": "@internal/code-repository-listing-frontend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/code_repository_listing/frontend/src",
+  "projectType": "application",
+  "tags": [
+    "type:frontend",
+    "scope:fastify"
+  ],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "npm run build",
+        "cwd": "fastify-apps/code_repository_listing/frontend"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastify-apps/code_repository_listing/frontend"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run preview",
+        "cwd": "fastify-apps/code_repository_listing/frontend"
+      }
+    }
+  }
+}

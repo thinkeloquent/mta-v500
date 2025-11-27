@@ -1,0 +1,28 @@
+Generic single-database configuration for app-chat-window.
+
+This Alembic setup manages database migrations for the app-chat-window FastAPI application.
+
+Key Features:
+
+- App-specific version table: alembic_version_chat_window
+- Namespace prefix: chat*window* for all tables
+- Upgrade-only migrations (no automatic downgrades)
+- Integration with app settings via POSTGRES\_\* environment variables
+
+Usage:
+make -f Makefile.Alembic db-status # Check migration status
+make -f Makefile.Alembic db-upgrade # Apply pending migrations
+make -f Makefile.Alembic db-create MSG='description' # Create new migration
+
+See Makefile.Alembic for full command reference.
+
+Important Rules:
+
+1. All table names must use 'chat*window*' prefix (e.g., chat_window_conversations, chat_window_messages)
+2. All indexes must use 'ix*chat_window*' prefix
+3. All foreign keys must use 'fk*chat_window*' prefix
+4. Migrations are upgrade-only (downgrade functions contain only 'pass')
+5. Use POSTGRES\_\* system environment variables (no .env files)
+
+Note: This app is primarily frontend-focused. Only create migrations if backend
+database functionality is added.

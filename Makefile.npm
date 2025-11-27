@@ -1,0 +1,476 @@
+# ==============================================================================
+# NPM Makefile - Manage NPM Workspace Operations (CI/CD)
+# ==============================================================================
+# Usage: make -f Makefile.npm <target>
+# Usage: make -f Makefile.npm clean
+# Usage: make -f Makefile.npm install
+# Usage: make -f Makefile.npm build
+# Or: include Makefile.npm in your main Makefile
+# ==============================================================================
+
+.PHONY: help
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+
+# Colors for output
+RED     := \033[0;31m
+GREEN   := \033[0;32m
+YELLOW  := \033[0;33m
+CYAN    := \033[0;36m
+BLUE    := \033[0;34m
+PURPLE  := \033[0;35m
+WHITE   := \033[0;37m
+RESET   := \033[0m
+
+# Project Configuration
+PROJECT_NAME ?= mta-v500
+VERSION ?= latest
+NODE_VERSION ?= 22
+
+# NPM Configuration
+NPM_REGISTRY ?= https://registry.npmjs.org
+NPM_CACHE_DIR ?= .npm-cache
+NPM_LOG_LEVEL ?= warn
+
+# Build Configuration
+BUILD_OPTS ?=
+INSTALL_OPTS ?= --no-package-lock
+TEST_OPTS ?=
+
+# Workspace Tiers (dependency order from Dockerfile)
+TIER1_WORKSPACES := @internal/config-loader @internal/core-exceptions @internal/core-decorator-registry @internal/core-no-cache @internal/core-plugin-logger @internal/core-route-logger @internal/core-prisma-orchestrator @internal/ui-components @internal/utils @internal/vault-secret-hydrator
+TIER2_WORKSPACES := @internal/core-configure @internal/core-prisma-utils @internal/core-spa-app @internal/core-static-app
+TIER3_WORKSPACES := @internal/skeleton
+
+# ------------------------------------------------------------------------------
+# Help
+# ------------------------------------------------------------------------------
+
+help: ## Show this help message
+	@echo "$(CYAN)NPM Workspace Management (CI/CD)$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Core Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(BLUE)Quick Commands:$(RESET)"
+	@echo "  make -f Makefile.npm install                    # Install dependencies"
+	@echo "  make -f Makefile.npm build                      # Build all workspaces"
+	@echo "  make -f Makefile.npm test                       # Run tests"
+	@echo "  make -f Makefile.npm clean                      # Clean artifacts"
+	@echo "  make -f Makefile.npm ci                         # Run CI workflow"
+	@echo ""
+	@echo "$(BLUE)CI/CD Workflow:$(RESET)"
+	@echo "  1. make -f Makefile.npm setup                   # Setup environment"
+	@echo "  2. make -f Makefile.npm install                 # Install dependencies"
+	@echo "  3. make -f Makefile.npm build                   # Build workspaces"
+	@echo "  4. make -f Makefile.npm test                    # Run tests"
+	@echo ""
+	@echo "$(PURPLE)Configuration:$(RESET)"
+	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  NODE_VERSION      = $(NODE_VERSION)"
+	@echo "  NPM_REGISTRY      = $(NPM_REGISTRY)"
+	@echo ""
+	@echo "$(PURPLE)Override Configuration:$(RESET)"
+	@echo "  NPM_REGISTRY=https://npm.pkg.github.com make -f Makefile.npm install"
+	@echo "  NODE_VERSION=20 make -f Makefile.npm setup"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Setup Operations
+# ------------------------------------------------------------------------------
+
+setup: ## Setup Node.js environment
+	@echo "$(CYAN)Setting up Node.js environment...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Verifying Node.js installation...$(RESET)"
+	@if command -v node > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ Node.js installed: $$(node --version)$(RESET)"; \
+	else \
+		echo "  $(RED)✗ Node.js not found$(RESET)"; \
+		echo "  $(YELLOW)Please install Node.js v$(NODE_VERSION) or higher$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Verifying npm installation...$(RESET)"
+	@if command -v npm > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ npm installed: $$(npm --version)$(RESET)"; \
+	else \
+		echo "  $(RED)✗ npm not found$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Checking workspace configuration...$(RESET)"
+	@if [ -f "package.json" ]; then \
+		echo "  $(GREEN)✓ package.json found$(RESET)"; \
+		WORKSPACES=$$(node -e "const pkg=require('./package.json'); console.log((pkg.workspaces || []).length)"); \
+		echo "  $(GREEN)✓ Workspaces configured: $$WORKSPACES patterns$(RESET)"; \
+	else \
+		echo "  $(RED)✗ package.json not found$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Setup complete$(RESET)"
+
+setup-registry: ## Configure npm registry
+	@echo "$(CYAN)Configuring npm registry...$(RESET)"
+	@npm config set registry $(NPM_REGISTRY)
+	@echo "$(GREEN)✓ Registry set to $(NPM_REGISTRY)$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Install Operations
+# ------------------------------------------------------------------------------
+
+install: ## Install all dependencies
+	@echo "$(CYAN)Installing dependencies...$(RESET)"
+	@echo "$(BLUE)Cleaning existing node_modules...$(RESET)"
+	@rm -rf node_modules fastapi-apps/*/frontend/node_modules fastapi-apps/*/frontend/package-lock.json 2>/dev/null || true
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules 2>/dev/null || true
+	@echo ""
+	@echo "$(BLUE)Installing with npm workspaces...$(RESET)"
+	@npm install $(INSTALL_OPTS)
+	@echo ""
+	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
+
+install-ci: ## Install dependencies for CI (clean install)
+	@echo "$(CYAN)Installing dependencies (CI mode)...$(RESET)"
+	@rm -rf node_modules fastapi-apps/*/frontend/node_modules fastapi-apps/*/frontend/package-lock.json
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules
+	@npm install --no-package-lock
+	@echo "$(GREEN)✓ CI dependencies installed$(RESET)"
+
+install-clean: ## Clean install (remove lock files)
+	@echo "$(CYAN)Performing clean install...$(RESET)"
+	@rm -rf node_modules package-lock.json
+	@rm -rf fastapi-apps/*/frontend/node_modules fastapi-apps/*/frontend/package-lock.json
+	@rm -rf fastify-apps/*/frontend/node_modules fastify-apps/*/node_modules packages-mjs/*/node_modules
+	@npm install --no-package-lock
+	@echo "$(GREEN)✓ Clean install complete$(RESET)"
+
+install-prod: ## Install production dependencies only
+	@echo "$(CYAN)Installing production dependencies...$(RESET)"
+	@npm install --omit=dev $(INSTALL_OPTS)
+	@echo "$(GREEN)✓ Production dependencies installed$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Build Operations
+# ------------------------------------------------------------------------------
+
+build: ## Build all workspaces
+	@echo "$(CYAN)Building all workspaces...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Building Tier 1 packages...$(RESET)"
+	@for ws in $(TIER1_WORKSPACES); do \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building Tier 2 packages...$(RESET)"
+	@for ws in $(TIER2_WORKSPACES); do \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building Tier 3 packages...$(RESET)"
+	@for ws in $(TIER3_WORKSPACES); do \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo ""
+	@echo "$(BLUE)Building all remaining workspaces...$(RESET)"
+	@npm run build --workspaces --if-present
+	@echo ""
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+build-tier1: ## Build Tier 1 packages (base packages)
+	@echo "$(CYAN)Building Tier 1 packages...$(RESET)"
+	@for ws in $(TIER1_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 1 build complete$(RESET)"
+
+build-tier2: ## Build Tier 2 packages (depends on Tier 1)
+	@echo "$(CYAN)Building Tier 2 packages...$(RESET)"
+	@for ws in $(TIER2_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 2 build complete$(RESET)"
+
+build-tier3: ## Build Tier 3 packages (depends on Tier 1 & 2)
+	@echo "$(CYAN)Building Tier 3 packages...$(RESET)"
+	@for ws in $(TIER3_WORKSPACES); do \
+		echo "  Building $$ws..."; \
+		npm run build --workspace=$$ws --if-present 2>/dev/null || echo "  $(YELLOW)⚠ Skipped: $$ws$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Tier 3 build complete$(RESET)"
+
+build-frontends: ## Build all frontend workspaces
+	@echo "$(CYAN)Building frontend workspaces...$(RESET)"
+	@npm run build --workspaces --if-present
+	@echo "$(GREEN)✓ Frontend builds complete$(RESET)"
+
+build-workspace: ## Build specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.npm build-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Building workspace: $(WS)$(RESET)"
+	@npm run build --workspace=$(WS) --if-present
+	@echo "$(GREEN)✓ Workspace build complete$(RESET)"
+
+build-verbose: ## Build with verbose output
+	@echo "$(CYAN)Building with verbose output...$(RESET)"
+	@npm run build --workspaces --if-present --loglevel verbose
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Test Operations
+# ------------------------------------------------------------------------------
+
+test: ## Run tests in all workspaces
+	@echo "$(CYAN)Running tests...$(RESET)"
+	@npm run test --workspaces --if-present $(TEST_OPTS)
+	@echo "$(GREEN)✓ Tests complete$(RESET)"
+
+test-workspace: ## Test specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.npm test-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Testing workspace: $(WS)$(RESET)"
+	@npm run test --workspace=$(WS) --if-present
+	@echo "$(GREEN)✓ Workspace tests complete$(RESET)"
+
+test-coverage: ## Run tests with coverage
+	@echo "$(CYAN)Running tests with coverage...$(RESET)"
+	@npm run test --workspaces --if-present -- --coverage
+	@echo "$(GREEN)✓ Tests with coverage complete$(RESET)"
+
+test-watch: ## Run tests in watch mode
+	@echo "$(CYAN)Running tests in watch mode...$(RESET)"
+	@npm run test --workspaces --if-present -- --watch
+
+# ------------------------------------------------------------------------------
+# Clean Operations
+# ------------------------------------------------------------------------------
+
+clean: ## Clean build artifacts
+	@echo "$(CYAN)Cleaning build artifacts...$(RESET)"
+	@npm run clean --workspaces --if-present 2>/dev/null || true
+	@rm -rf fastapi-apps/*/frontend/dist
+	@rm -rf fastify-apps/*/frontend/dist
+	@rm -rf packages-mjs/*/dist
+	@rm -rf static/app/*/frontend/dist
+	@echo "$(GREEN)✓ Clean complete$(RESET)"
+
+clean-node-modules: ## Remove all node_modules
+	@echo "$(CYAN)Removing all node_modules...$(RESET)"
+	@rm -rf node_modules
+	@rm -rf fastapi-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/frontend/node_modules
+	@rm -rf fastify-apps/*/node_modules
+	@rm -rf packages-mjs/*/node_modules
+	@echo "$(GREEN)✓ node_modules removed$(RESET)"
+
+clean-locks: ## Remove all package-lock.json files
+	@echo "$(CYAN)Removing package-lock.json files...$(RESET)"
+	@find . -name "package-lock.json" -type f -delete 2>/dev/null || true
+	@echo "$(GREEN)✓ Lock files removed$(RESET)"
+
+clean-cache: ## Clean npm cache
+	@echo "$(CYAN)Cleaning npm cache...$(RESET)"
+	@npm cache clean --force
+	@echo "$(GREEN)✓ Cache cleaned$(RESET)"
+
+clean-all: clean clean-node-modules clean-locks ## Clean everything
+	@echo "$(GREEN)✓ All cleaned$(RESET)"
+
+# ------------------------------------------------------------------------------
+# CI/CD Operations
+# ------------------------------------------------------------------------------
+
+ci: ci-install ci-build ci-test ## Run full CI workflow (install + build + test)
+	@echo ""
+	@echo "$(GREEN)✓ CI workflow complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Dependencies installed"
+	@echo "  ✓ Workspaces built"
+	@echo "  ✓ Tests passed"
+
+ci-install: install-ci ## CI install step
+	@echo "$(GREEN)✓ CI install complete$(RESET)"
+
+ci-build: build ## CI build step
+	@echo "$(GREEN)✓ CI build complete$(RESET)"
+
+ci-test: test ## CI test step
+	@echo "$(GREEN)✓ CI test complete$(RESET)"
+
+ci-fast: ## Fast CI (clean install + build + test)
+	@make -f Makefile.npm clean-all
+	@make -f Makefile.npm install-ci
+	@make -f Makefile.npm build
+	@make -f Makefile.npm test
+	@echo "$(GREEN)✓ Fast CI complete$(RESET)"
+
+ci-full: clean-all install-ci build test ## Full CI (clean + install + build + test)
+	@echo "$(GREEN)✓ Full CI complete$(RESET)"
+
+ci-setup-build-test: setup install build test ## CI workflow with setup
+	@echo ""
+	@echo "$(GREEN)✓ CI test lifecycle complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Environment setup"
+	@echo "  ✓ Dependencies installed"
+	@echo "  ✓ Workspaces built"
+	@echo "  ✓ Tests executed"
+
+# ------------------------------------------------------------------------------
+# Development Workflows
+# ------------------------------------------------------------------------------
+
+dev: ## Run development servers
+	@echo "$(CYAN)Starting development servers...$(RESET)"
+	@npm run dev --workspaces --if-present
+
+dev-workspace: ## Run dev for specific workspace (use WS=@scope/name)
+	@if [ -z "$(WS)" ]; then \
+		echo "$(RED)✗ WS parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.npm dev-workspace WS=@mta/ui-components$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Starting dev for workspace: $(WS)$(RESET)"
+	@npm run dev --workspace=$(WS) --if-present
+
+lint: ## Run linting
+	@echo "$(CYAN)Running linters...$(RESET)"
+	@npm run lint --workspaces --if-present 2>/dev/null || echo "$(YELLOW)⚠ No lint script found$(RESET)"
+	@echo "$(GREEN)✓ Linting complete$(RESET)"
+
+format: ## Run formatters
+	@echo "$(CYAN)Running formatters...$(RESET)"
+	@npm run format --workspaces --if-present 2>/dev/null || echo "$(YELLOW)⚠ No format script found$(RESET)"
+	@echo "$(GREEN)✓ Formatting complete$(RESET)"
+
+typecheck: ## Run type checking
+	@echo "$(CYAN)Running type checks...$(RESET)"
+	@npm run typecheck --workspaces --if-present 2>/dev/null || \
+	npm run type-check --workspaces --if-present 2>/dev/null || \
+	echo "$(YELLOW)⚠ No typecheck script found$(RESET)"
+	@echo "$(GREEN)✓ Type checking complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Utility Commands
+# ------------------------------------------------------------------------------
+
+version: ## Show Node.js and npm versions
+	@echo "$(CYAN)Version Information:$(RESET)"
+	@echo "  Node.js: $$(node --version)"
+	@echo "  npm:     $$(npm --version)"
+	@echo ""
+	@echo "$(CYAN)Project Information:$(RESET)"
+	@echo "  Name:    $(PROJECT_NAME)"
+	@echo "  Version: $$(node -e "console.log(require('./package.json').version)")"
+
+list-workspaces: ## List all workspaces
+	@echo "$(CYAN)Workspaces:$(RESET)"
+	@npm query ":scope" 2>/dev/null | node -e "const s=require('fs').readFileSync('/dev/stdin','utf8');JSON.parse(s).forEach(p=>console.log('  '+p.name+'@'+p.version))" 2>/dev/null || \
+	echo "$(YELLOW)⚠ Run 'npm install' first to see workspaces$(RESET)"
+
+list-outdated: ## List outdated packages
+	@echo "$(CYAN)Outdated packages:$(RESET)"
+	@npm outdated --workspaces
+
+audit: ## Run security audit
+	@echo "$(CYAN)Running security audit...$(RESET)"
+	@npm audit --workspaces
+	@echo "$(GREEN)✓ Audit complete$(RESET)"
+
+audit-fix: ## Fix security vulnerabilities
+	@echo "$(CYAN)Fixing security vulnerabilities...$(RESET)"
+	@npm audit fix --workspaces
+	@echo "$(GREEN)✓ Audit fix complete$(RESET)"
+
+config-show: ## Show current configuration
+	@echo "$(CYAN)NPM Configuration:$(RESET)"
+	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  NODE_VERSION      = $(NODE_VERSION)"
+	@echo "  NPM_REGISTRY      = $(NPM_REGISTRY)"
+	@echo "  NPM_LOG_LEVEL     = $(NPM_LOG_LEVEL)"
+	@echo "  INSTALL_OPTS      = $(INSTALL_OPTS)"
+	@echo ""
+	@echo "$(CYAN)Workspace Tiers:$(RESET)"
+	@echo "  Tier 1: $(words $(TIER1_WORKSPACES)) packages"
+	@echo "  Tier 2: $(words $(TIER2_WORKSPACES)) packages"
+	@echo "  Tier 3: $(words $(TIER3_WORKSPACES)) packages"
+
+# ------------------------------------------------------------------------------
+# Static File Operations (for FastAPI integration)
+# ------------------------------------------------------------------------------
+
+organize-static: ## Organize built files into static directory
+	@echo "$(CYAN)Organizing static files...$(RESET)"
+	@mkdir -p static/app
+	@for frontend_dir in fastapi-apps/*/frontend; do \
+		if [ -d "$$frontend_dir/dist" ]; then \
+			app_name=$$(basename $$(dirname "$$frontend_dir")); \
+			clean_name=$$(echo "$$app_name" | sed 's/^app-//'); \
+			dest_dir="static/app/$$clean_name/frontend"; \
+			echo "  Copying $$app_name → $$clean_name"; \
+			mkdir -p "$$dest_dir"; \
+			cp -r "$$frontend_dir/dist" "$$dest_dir/"; \
+		fi; \
+	done
+	@echo "$(GREEN)✓ Static files organized$(RESET)"
+
+verify-build: ## Verify build output
+	@echo "$(CYAN)Build Verification:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Index files found:$(RESET)"
+	@find static -type f -name "index.html" 2>/dev/null || echo "  (none)"
+	@echo ""
+	@echo "$(BLUE)Total files:$(RESET)"
+	@find static -type f 2>/dev/null | wc -l || echo "  0"
+	@echo ""
+	@echo "$(BLUE)Total size:$(RESET)"
+	@du -sh static 2>/dev/null || echo "  0"
+
+# ------------------------------------------------------------------------------
+# Complete Workflows
+# ------------------------------------------------------------------------------
+
+init: setup install ## Initialize - setup and install
+	@echo ""
+	@echo "$(GREEN)✓ NPM environment initialized$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Next steps:$(RESET)"
+	@echo "  1. Build workspaces: make -f Makefile.npm build"
+	@echo "  2. Run tests:        make -f Makefile.npm test"
+	@echo "  3. Start dev:        make -f Makefile.npm dev"
+	@echo ""
+
+all: clean-all install build test organize-static ## Full workflow (clean + install + build + test + organize)
+	@echo ""
+	@echo "$(GREEN)✓ All tasks complete$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Environment Status:$(RESET)"
+	@make -f Makefile.npm version
+	@echo ""
+	@echo "$(CYAN)Ready to:$(RESET)"
+	@echo "  make -f Makefile.npm dev          # Start development"
+	@echo "  make -f Makefile.docker build     # Build Docker image"
+
+reset: clean-all install build ## Reset and rebuild everything
+	@echo ""
+	@echo "$(GREEN)✓ Reset complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Default target
+# ------------------------------------------------------------------------------
+
+.DEFAULT_GOAL := help

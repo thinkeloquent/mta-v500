@@ -1,0 +1,45 @@
+{
+  "name": "@internal/core-route-logger",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/core-route-logger/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/core-route-logger"
+      }
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/core-route-logger"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/core-route-logger"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/core-route-logger"
+      }
+    }
+  },
+  "tags": [
+    "type:library",
+    "scope:core",
+    "level:0"
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "$schema": "./rules.schema.json",
+  "description": "NPM Package Version Scanner Rules Configuration",
+  "defaults": {
+    "shouldBeSameMajorVersion": true,
+    "shouldBeSameVersion": false,
+    "allowedVersionRange": {
+      "upper": null,
+      "lower": null
+    },
+    "allowPrerelease": false,
+    "ignorePeerDependencies": true
+  },
+  "packages": {
+    "typescript": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": true,
+      "comment": "TypeScript should be consistent across all workspaces"
+    },
+    "react": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false,
+      "allowedVersionRange": {
+        "upper": "19.0.0",
+        "lower": "17.0.0"
+      }
+    },
+    "react-dom": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false,
+      "comment": "Should match react version"
+    },
+    "@types/node": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false,
+      "allowedVersionRange": {
+        "upper": null,
+        "lower": "18.0.0"
+      }
+    },
+    "eslint": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false
+    },
+    "prettier": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": true
+    },
+    "vitest": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false
+    },
+    "jest": {
+      "shouldBeSameMajorVersion": true,
+      "shouldBeSameVersion": false
+    }
+  },
+  "ignorePackages": [
+    "@types/*"
+  ],
+  "ignoreWorkspaces": [],
+  "severity": {
+    "majorVersionMismatch": "error",
+    "minorVersionMismatch": "warning",
+    "patchVersionMismatch": "info",
+    "outdated": "warning",
+    "deprecated": "error"
+  }
+}

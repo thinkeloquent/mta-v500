@@ -1,0 +1,67 @@
+{
+  "name": "@internal/core-route-logger",
+  "version": "1.1.4",
+  "description": "Fastify plugin for logging all registered routes to console, file, and/or structured JSON",
+  "license": "MIT",
+  "author": "ThinkEloquent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosmarte/mta-multi-tenant-application.git",
+    "directory": "external/core-route-logger"
+  },
+  "homepage": "https://github.com/carlosmarte/mta-multi-tenant-application#readme",
+  "bugs": {
+    "url": "https://github.com/carlosmarte/mta-multi-tenant-application/issues"
+  },
+  "keywords": [
+    "fastify",
+    "plugin",
+    "routes",
+    "logging",
+    "debug",
+    "development",
+    "multi-tenant"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify-plugin": "^5.0.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^3.2.4",
+    "fastify": "^5.6.1",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "fastify": ">=5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

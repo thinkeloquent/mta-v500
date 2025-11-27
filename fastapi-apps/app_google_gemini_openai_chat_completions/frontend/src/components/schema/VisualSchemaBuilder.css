@@ -1,0 +1,238 @@
+.visual-schema-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.schema-name-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.schema-name-input label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.schema-name-input input {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: white;
+  transition: all 150ms ease;
+}
+
+.schema-name-input input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.schema-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.schema-fields-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.schema-fields-header h4 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.add-field-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6366f1;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.add-field-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: #6366f1;
+}
+
+.schema-fields-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 8px;
+  border: 1px dashed rgba(99, 102, 241, 0.2);
+}
+
+.schema-fields-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.schema-fields-empty p:first-child {
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.schema-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.schema-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
+  transition: all 150ms ease;
+}
+
+.schema-field:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+}
+
+.schema-field-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.schema-field-input {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.schema-field-input label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.schema-field-input input,
+.schema-field-input select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  transition: all 150ms ease;
+}
+
+.schema-field-input input:focus,
+.schema-field-input select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.schema-field-type {
+  flex: 0 0 120px;
+}
+
+.schema-field-checkbox {
+  display: flex;
+  align-items: center;
+  padding-bottom: 0.375rem;
+}
+
+.schema-field-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #475569;
+  cursor: pointer;
+}
+
+.schema-field-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+}
+
+.schema-field-remove {
+  padding: 0.5rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.schema-field-remove:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.schema-field-description {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.schema-field-description label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.schema-field-description input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: #64748b;
+  background: rgba(248, 250, 252, 0.8);
+  transition: all 150ms ease;
+}
+
+.schema-field-description input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: white;
+  color: #1e293b;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .schema-field-row {
+    flex-wrap: wrap;
+  }
+
+  .schema-field-input {
+    flex: 1 1 100%;
+  }
+
+  .schema-field-type {
+    flex: 1 1 calc(50% - 0.375rem);
+  }
+
+  .schema-field-checkbox {
+    flex: 1 1 calc(50% - 0.375rem);
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "mta-v500",
+  "version": "5.0.0",
+  "description": "Multi-language monorepo (Python + JavaScript) using Nx",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages-mjs/*",
+    "fastify-apps/*",
+    "fastapi-apps/*/frontend",
+    "fastify-apps/*/frontend"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build",
+    "dev": "nx run-many -t dev",
+    "test": "nx run-many -t test",
+    "clean": "nx run-many -t clean",
+    "generate-types": "./common/scripts/generate-types.sh",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "graph": "nx graph",
+    "affected": "nx affected",
+    "affected:build": "nx affected -t build",
+    "affected:test": "nx affected -t test"
+  },
+  "keywords": [
+    "monorepo",
+    "workspaces",
+    "frontend",
+    "fastapi",
+    "fastify",
+    "multi-language",
+    "nx"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@biomejs/biome": "2.3.6",
+    "@nx/vite": "22.0.4",
+    "nx": "22.0.4"
+  },
+  "overrides": {
+    "browserslist": "^4.27.0",
+    "vitest": "3.2.4",
+    "@vitest/coverage-v8": "3.2.4"
+  }
+}

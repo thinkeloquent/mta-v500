@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "google-compatible-openai-httpx"
+version = "0.1.0"
+description = "Gemini API client using OpenAI-compatible endpoints with httpx"
+authors = ["Developer"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+httpx = {extras = ["http2"], version = "^0.28.1"}
+rich = "^14.2.0"
+pillow = "^12.0.0"
+openai = "^2.8.1"
+pydantic = "^2.12.5"
+pyyaml = "^6.0.3"
+python-liquid = "^2.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,222 @@
+# Makefile.vite - Vite Frontend CI tasks
+# Implements CI targets: install, build, test, run, clean
+# Manages Vite frontends in: fastapi-apps/*/frontend, packages-mjs/ui-components
+
+
+NODE := node
+NPM := pnpm
+VITE_PORT := 5173
+COMMON_DIR := ./common
+
+# Frontend workspace patterns
+FASTAPI_FRONTENDS := fastapi-apps/*/frontend
+UI_PACKAGES := packages-mjs/ui-components
+
+.PHONY: install build test run clean clean-cache dev dev-frontend preview help list-frontends
+
+# =============================================================================
+# CI Targets (called by root Makefile)
+# =============================================================================
+#
+# Usage:
+#   make -f Makefile.vite help           # Show this help
+#   make -f Makefile.vite dev            # Start Vite dev servers
+#   make -f Makefile.vite build          # Build all frontends
+#   make -f Makefile.vite clean          # Clean build artifacts and caches
+#   make -f Makefile.vite clean-cache    # Deep clean (fixes stale cache issues)
+
+install:
+	@echo "[Vite] Installing npm dependencies for all frontends..."
+	@echo "[Vite] This is handled by root package.json workspaces"
+	@$(NPM) install
+
+build:
+	@echo "[Vite] Building all Vite frontends..."
+	@echo ""
+	@echo "[Vite] Building FastAPI frontends..."
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "[Vite] No FastAPI frontends found. This is expected."; \
+	else \
+		for frontend in fastapi-apps/app-*/frontend; do \
+			if [ -f "$$frontend/package.json" ]; then \
+				echo "[Vite] Building $$(basename $$(dirname $$frontend))..."; \
+				cd "$$frontend" && $(NPM) run --if-present build && cd - >/dev/null; \
+			fi; \
+		done; \
+	fi
+	@echo ""
+	@echo "[Vite] Building UI component packages..."
+	@if [ -d "packages-mjs/ui-components" ]; then \
+		$(NPM) --filter "./$(UI_PACKAGES)" run --if-present build; \
+	else \
+		echo "[Vite] No UI packages found. This is expected."; \
+	fi
+	@echo ""
+	@echo "[Vite] Build complete - Static assets ready for deployment"
+
+test:
+	@echo "[Vite] Running tests for all frontends..."
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "[Vite] No frontends to test yet. This is expected."; \
+	else \
+		$(NPM) --filter "./$(FASTAPI_FRONTENDS)" run --if-present test; \
+		$(NPM) --filter "./$(UI_PACKAGES)" run --if-present test; \
+	fi
+
+run:
+	@echo "[Vite] Starting Vite dev servers..."
+	@echo "[Vite] Note: For production, use 'make -f Makefile.vite preview'"
+	@echo ""
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "[Vite] No frontends to run yet. This is expected."; \
+	else \
+		$(NPM) --filter "./$(FASTAPI_FRONTENDS)" run --if-present dev; \
+	fi
+
+clean:
+	@echo "[Vite] Cleaning build artifacts and caches..."
+	@echo "[Vite] Removing Vite caches..."
+	@rm -rf node_modules/.vite
+	@find fastapi-apps -path "*/frontend/node_modules/.vite" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find fastapi-apps -path "*/frontend/.vite" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find packages-mjs -path "*/node_modules/.vite" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find packages-mjs -name ".vite" -type d -exec rm -rf {} + 2>/dev/null || true
+	@echo "[Vite] Removing dist directories..."
+	@find fastapi-apps -path "*/frontend/dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find packages-mjs -name "dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@echo "[Vite] Clean complete"
+
+clean-cache:
+	@echo "[Vite] Deep cleaning all Vite caches and build artifacts..."
+	@echo "[Vite] This will fix issues with:"
+	@echo "  - Stale cached modules causing old code to load"
+	@echo "  - Build artifacts from previous builds"
+	@echo "  - Vite's dependency pre-bundling cache"
+	@echo ""
+	@make -f Makefile.vite clean
+	@echo ""
+	@echo "[SUCCESS] All Vite caches cleared!"
+	@echo "[Vite] Run 'make -f Makefile.vite build' to rebuild"
+
+# =============================================================================
+# Development Targets
+# =============================================================================
+
+dev:
+	@echo "[Vite] Starting all Vite dev servers with hot-reload..."
+	@echo "[Vite] - HMR (Hot Module Replacement) enabled"
+	@echo "[Vite] - Fast refresh for React components"
+	@echo "[Vite] Press Ctrl+C to stop"
+	@echo ""
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "[Vite] No frontends found. This is expected."; \
+		echo "[Vite] FastAPI apps can create frontends in: fastapi-apps/<app>/frontend/"; \
+	else \
+		$(NPM) --filter "./$(FASTAPI_FRONTENDS)" run --if-present dev; \
+	fi
+
+dev-frontend:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME parameter is required."; \
+		echo "Usage: make -f Makefile.vite dev-frontend NAME=figma-component-inspector"; \
+		echo ""; \
+		$(MAKE) -f Makefile.vite list-frontends; \
+		exit 1; \
+	fi
+	@if [ ! -d "fastapi-apps/$(NAME)/frontend" ]; then \
+		echo "Error: Frontend 'fastapi-apps/$(NAME)/frontend' not found."; \
+		echo ""; \
+		$(MAKE) -f Makefile.vite list-frontends; \
+		exit 1; \
+	fi
+	@echo "[Vite] Starting $(NAME) frontend with HMR..."
+	@cd fastapi-apps/$(NAME)/frontend && $(NPM) run dev
+
+preview:
+	@echo "[Vite] Starting preview servers (production build)..."
+	@echo "[Vite] Building first..."
+	@$(MAKE) -f Makefile.vite build
+	@echo ""
+	@echo "[Vite] Starting preview servers..."
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "[Vite] No frontends to preview."; \
+	else \
+		$(NPM) --filter "./$(FASTAPI_FRONTENDS)" run --if-present preview; \
+	fi
+
+list-frontends:
+	@echo "Available Vite Frontends:"
+	@echo ""
+	@echo "FastAPI Frontends:"
+	@if [ -z "$$(find fastapi-apps -path '*/frontend/package.json' 2>/dev/null)" ]; then \
+		echo "  (none)"; \
+	else \
+		find fastapi-apps -path '*/frontend/package.json' -type f 2>/dev/null | \
+		sed 's|fastapi-apps/||; s|/frontend/package.json||' | \
+		awk '{print "  - " $$0}'; \
+	fi
+	@echo ""
+	@echo "UI Packages:"
+	@if [ -d "packages-mjs/ui-components" ]; then \
+		echo "  - ui-components"; \
+	else \
+		echo "  (none)"; \
+	fi
+
+# =============================================================================
+# Utility Targets
+# =============================================================================
+
+lint:
+	@echo "[Vite] Running linters for all frontends..."
+	@$(NPM) --filter "./$(FASTAPI_FRONTENDS)" run --if-present lint
+	@$(NPM) --filter "./$(UI_PACKAGES)" run --if-present lint
+
+type-check:
+	@echo "[Vite] Running TypeScript type checking..."
+	@find fastapi-apps -path "*/frontend/tsconfig.json" -type f 2>/dev/null | \
+	while read config; do \
+		dir=$$(dirname "$$config"); \
+		echo "[Vite] Type checking in $$dir..."; \
+		cd "$$dir" && npx tsc --noEmit; \
+	done
+
+# =============================================================================
+# Help
+# =============================================================================
+
+help:
+	@echo "Makefile.vite - Vite Frontend Development"
+	@echo ""
+	@echo "CI Targets:"
+	@echo "  make -f Makefile.vite install            - Install npm dependencies"
+	@echo "  make -f Makefile.vite build              - Build all Vite frontends"
+	@echo "  make -f Makefile.vite test               - Run all frontend tests"
+	@echo "  make -f Makefile.vite run                - Start Vite dev servers"
+	@echo "  make -f Makefile.vite clean              - Clean build artifacts"
+	@echo ""
+	@echo "Development Targets:"
+	@echo "  make -f Makefile.vite dev                - Start all dev servers with HMR"
+	@echo "  make -f Makefile.vite dev-frontend NAME=<app>"
+	@echo "                                           - Start specific frontend dev server"
+	@echo "  make -f Makefile.vite preview            - Preview production builds"
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  make -f Makefile.vite list-frontends     - List all available frontends"
+	@echo "  make -f Makefile.vite lint               - Run linters"
+	@echo "  make -f Makefile.vite type-check         - Run TypeScript type checking"
+	@echo ""
+	@echo "Examples:"
+	@echo "  # Build all frontends for production"
+	@echo "  make -f Makefile.vite build"
+	@echo ""
+	@echo "  # Start development server for a specific frontend"
+	@echo "  make -f Makefile.vite dev-frontend NAME=figma-component-inspector"
+	@echo ""
+	@echo "  # Start all frontend dev servers"
+	@echo "  make -f Makefile.vite dev"
+	@echo ""
+	@echo "Managed Frontends:"
+	@echo "  - fastapi-apps/*/frontend  (React/Vite frontends for FastAPI apps)"
+	@echo "  - packages-mjs/ui-components  (Shared UI component library)"
+	@echo ""

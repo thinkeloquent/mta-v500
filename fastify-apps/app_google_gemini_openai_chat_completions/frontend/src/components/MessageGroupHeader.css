@@ -1,0 +1,55 @@
+.message-group-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 0 1rem;
+}
+
+.message-group-header--compact {
+  margin: 1rem 0;
+  gap: 0.75rem;
+}
+
+.message-group-header-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(99, 102, 241, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+.message-group-header-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  padding: 0.25rem 0.75rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.message-group-header--compact .message-group-header-label {
+  font-size: 0.75rem;
+  padding: 0.1875rem 0.625rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .message-group-header {
+    margin: 1.25rem 0;
+    gap: 0.625rem;
+    padding: 0 0.5rem;
+  }
+
+  .message-group-header-label {
+    font-size: 0.75rem;
+    padding: 0.1875rem 0.5rem;
+  }
+}

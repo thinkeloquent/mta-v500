@@ -1,0 +1,118 @@
+# Dockerfile.pnpm - Node.js/Fastify applications with pnpm + Nx
+# Multi-stage build for Node.js apps that serve frontends
+
+# Stage 1: Builder
+FROM node:22-slim AS builder
+
+# Install pnpm via corepack
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+
+# Set registry from build args
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+ARG NPM_TOKEN=""
+
+ENV NPM_REGISTRY=${NPM_REGISTRY}
+
+WORKDIR /app
+
+# Copy workspace configuration files first (better layer caching)
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* .npmrc ./
+COPY tsconfig*.json ./
+
+# Copy common configs & schemas
+COPY common/ ./common/
+
+# Copy JavaScript packages
+COPY packages-mjs/ ./packages-mjs/
+
+# Copy Fastify apps
+COPY fastify-apps/ ./fastify-apps/
+
+# Copy FastAPI app frontends
+COPY fastapi-apps/ ./fastapi-apps/
+
+# Copy utility scripts
+COPY .bin/ ./.bin/
+COPY scripts/ ./scripts/
+
+# Install dependencies with pnpm
+# --frozen-lockfile ensures reproducible builds
+RUN pnpm install --frozen-lockfile || pnpm install
+
+# Generate types from common schemas
+RUN chmod +x ./common/scripts/generate-types.sh && \
+    ./common/scripts/generate-types.sh || true
+
+# Build all packages with Nx (respects dependency graph)
+# --parallel=1 for memory-constrained environments, increase for faster builds
+RUN pnpm nx run-many -t build --parallel=3
+
+# Build all frontends (fastapi-apps/*/frontend workspaces)
+RUN for frontend in /app/fastapi-apps/*/frontend; do \
+    if [ -d "$frontend" ] && [ -f "$frontend/package.json" ]; then \
+    app_name=$(basename $(dirname "$frontend")); \
+    echo "Building frontend for $app_name..."; \
+    (cd "$frontend" && pnpm run build) || echo "No build script for $app_name frontend"; \
+    fi; \
+    done
+
+# Organize built files into static directory structure
+# Pattern: fastify-apps/{app_name}/frontend/dist → /static/app/{app_name}/frontend/dist
+RUN mkdir -p /static/app && \
+    echo "Organizing built frontend files..." && \
+    for frontend_dir in /app/fastify-apps/*/frontend; do \
+    if [ -d "$frontend_dir/dist" ]; then \
+    app_name=$(basename $(dirname "$frontend_dir")); \
+    dest_dir="/static/app/$app_name/frontend"; \
+    echo "Copying $app_name: $frontend_dir/dist → $dest_dir/dist"; \
+    mkdir -p "$dest_dir"; \
+    cp -r "$frontend_dir/dist" "$dest_dir/"; \
+    else \
+    app_name=$(basename $(dirname "$frontend_dir")); \
+    echo "Warning: No dist folder found for $app_name"; \
+    fi; \
+    done && \
+    echo "Static files organized successfully!"
+
+# Verify the build output
+RUN echo "Build verification:" && \
+    find /static -type f -name "index.html" || echo "No index.html files found" && \
+    echo "Total files:" && \
+    find /static -type f | wc -l && \
+    echo "Total size:" && \
+    du -sh /static
+
+# Stage 2: Runtime
+FROM node:22-slim AS runtime
+
+# Install pnpm for runtime (needed for workspace resolution)
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+
+WORKDIR /app
+
+# ARG for environment secrets file path
+ARG ENV_SECRET_FILE="/etc/secrets/MTA_DEV"
+ARG BUILD_ID="v.0.0.1"
+
+ENV BUILD_ID=${BUILD_ID}
+ENV ENV_SECRET_FILE=${ENV_SECRET_FILE}
+
+# Copy built artifacts from builder
+COPY --from=builder /static ./static
+COPY --from=builder /app/fastify-apps ./fastify-apps
+COPY --from=builder /app/common ./common
+COPY --from=builder /app/packages-mjs ./packages-mjs
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+
+# Expose default port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start server
+CMD ["node", "fastify-apps/main/server.mjs"]

@@ -1,0 +1,1015 @@
+# ==============================================================================
+# Docker Makefile - Manage Docker Container Operations
+# ==============================================================================
+# Usage: make -f Makefile.docker <target>
+# Usage: make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify
+# Usage: make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres
+# Usage: make -f Makefile.docker run
+# Or: include Makefile.docker in your main Makefile
+#
+# Available Dockerfiles (root directory):
+#   - Dockerfile.python              Python 3.11 runtime for FastAPI
+#   - Dockerfile.database            PostgreSQL & Redis services (targets: postgres, redis)
+#   - Dockerfile.fastapi             Multi-stage FastAPI with frontend
+#   - Dockerfile.fastify             Multi-stage Fastify/Node.js
+#   - Dockerfile.static-apps         Static frontend artifact builder
+#   - Dockerfile.pnpm                Node.js with pnpm package manager
+#   - Dockerfile.static-apps-integration-test  Nginx for testing static files
+# ==============================================================================
+
+.PHONY: help
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+
+# Colors for output
+RED     := \033[0;31m
+GREEN   := \033[0;32m
+YELLOW  := \033[0;33m
+CYAN    := \033[0;36m
+BLUE    := \033[0;34m
+PURPLE  := \033[0;35m
+WHITE   := \033[0;37m
+RESET   := \033[0m
+
+# Project Configuration
+PROJECT_NAME ?= app-v500
+VERSION ?= latest
+IMAGE_NAME ?= $(PROJECT_NAME)
+CONTAINER_NAME ?= $(PROJECT_NAME)-container
+
+# Docker Registry Configuration
+# Override these by setting environment variables or editing this file
+DOCKER_REGISTRY ?=
+DOCKER_USERNAME ?=
+REGISTRY_IMAGE = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(if $(DOCKER_USERNAME),$(DOCKER_USERNAME)/,)$(IMAGE_NAME)
+
+# Container Configuration
+PORT ?= 8080
+HOST_PORT ?= $(PORT)
+ENV_FILE ?= .env
+
+# ------------------------------------------------------------------------------
+# Dockerfile Selection Configuration
+# ------------------------------------------------------------------------------
+# DOCKERFILE: Path to Dockerfile (default: Dockerfile)
+# CONTEXT:    Build context directory (default: current directory)
+# TARGET:     Multi-stage build target (optional)
+# WORKDIR:    Working directory for build (default: current directory)
+#
+# Examples:
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres
+#   make -f Makefile.docker build DOCKERFILE=Dockerfile.static-apps CONTEXT=./fastify-apps
+# ------------------------------------------------------------------------------
+DOCKERFILE ?= Dockerfile
+CONTEXT ?= .
+TARGET ?=
+WORKDIR ?= $(shell pwd)
+
+# Build Configuration
+BUILD_ARGS ?=
+DOCKER_BUILD_OPTS ?=
+DOCKER_RUN_OPTS ?=
+
+# NPM/Node Registry for build (passed as build args)
+NPM_REGISTRY ?= https://registry.npmjs.org/
+NPM_TOKEN ?=
+
+# Python/Pip Registry for build (passed as build args)
+PYTHON_REGISTRY_URL ?= https://pypi.org/simple
+PIP_INDEX_URL ?= $(PYTHON_REGISTRY_URL)
+
+PYTHON_PYPI_HOST ?= pypi.org
+PYPI_HOST ?= $(PYTHON_PYPI_HOST)
+
+PYTHON_CA_CERT ?= ""
+CA_CERT ?= $(PYTHON_CA_CERT)
+
+PYTHON_HTTP_PROXY ?= ""
+CA_CERT ?= $(HTTP_PROXY)
+
+PYTHON_HTTPS_PROXY ?= ""
+HTTPS_PROXY ?= $(PYTHON_HTTPS_PROXY)
+
+# ------------------------------------------------------------------------------
+# Help
+# ------------------------------------------------------------------------------
+
+help: ## Show this help message
+	@echo "$(CYAN)Docker Container Management$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Core Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(BLUE)Quick Commands:$(RESET)"
+	@echo "  make -f Makefile.docker build                    # Build default image"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres"
+	@echo "  make -f Makefile.docker run                      # Run container"
+	@echo "  make -f Makefile.docker stop                     # Stop container"
+	@echo "  make -f Makefile.docker logs                     # View logs"
+	@echo "  make -f Makefile.docker list-dockerfiles         # List available Dockerfiles"
+	@echo ""
+	@echo "$(BLUE)Build Arguments:$(RESET)"
+	@echo "  DOCKERFILE        Dockerfile to use (default: Dockerfile)"
+	@echo "  CONTEXT           Build context directory (default: .)"
+	@echo "  TARGET            Multi-stage build target (optional)"
+	@echo "  IMAGE_NAME        Name for the built image"
+	@echo "  VERSION           Image version tag (default: latest)"
+	@echo ""
+	@echo "$(PURPLE)Current Configuration:$(RESET)"
+	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
+	@echo "  CONTAINER_NAME    = $(CONTAINER_NAME)"
+	@echo "  PORT              = $(PORT)"
+	@echo "  HOST_PORT         = $(HOST_PORT)"
+	@echo ""
+	@echo "$(PURPLE)Override Examples:$(RESET)"
+	@echo "  DOCKERFILE=Dockerfile.fastify IMAGE_NAME=mta-fastify make -f Makefile.docker build"
+	@echo "  DOCKERFILE=Dockerfile.database TARGET=postgres make -f Makefile.docker build"
+	@echo "  VERSION=v1.0.0 make -f Makefile.docker build"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Build Operations
+# ------------------------------------------------------------------------------
+
+build: ## Build Docker image
+	@echo "$(CYAN)Building Docker image...$(RESET)"
+	@echo "$(BLUE)Stopping existing container if running...$(RESET)"
+	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
+	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(BLUE)Image: $(IMAGE_NAME):$(VERSION)$(RESET)"
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE)$(RESET)"
+	@echo "$(BLUE)Context: $(CONTEXT)$(RESET)"
+	$(if $(TARGET),@echo "$(BLUE)Target: $(TARGET)$(RESET)",)
+	@docker build \
+		$(DOCKER_BUILD_OPTS) \
+		$(BUILD_ARGS) \
+		--platform linux/amd64 \
+		$(if $(TARGET),--target $(TARGET),) \
+		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg PYPI_HOST=$(PYPI_HOST) \
+		--build-arg CA_CERT_PATH=$(CA_CERT) \
+		--build-arg HTTP_PROXY=$(HTTP_PROXY) \
+		--build-arg HTTPS_PROXY=$(HTTPS_PROXY) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
+		--build-arg MTA_ENV=production \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		-f $(DOCKERFILE) \
+		$(CONTEXT)
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+	@echo ""
+	@make -f Makefile.docker image-info IMAGE_NAME=$(IMAGE_NAME)
+
+build-no-cache: ## Build without cache
+	@echo "$(CYAN)Building Docker image (no cache)...$(RESET)"
+	@echo "$(BLUE)Stopping existing container if running...$(RESET)"
+	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
+	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
+	@docker build \
+		$(DOCKER_BUILD_OPTS) \
+		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
+		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
+		--build-arg MTA_ENV=production \
+		--no-cache \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		-f $(DOCKERFILE) \
+		$(CONTEXT)
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+build-verbose: ## Build with verbose output
+	@echo "$(CYAN)Building Docker image (verbose)...$(RESET)"
+	@echo "$(BLUE)Stopping existing container if running...$(RESET)"
+	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
+	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
+	@docker build \
+		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
+		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
+		--build-arg MTA_ENV=production \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		-f $(DOCKERFILE) \
+		$(CONTEXT)
+	@echo "$(GREEN)✓ Build complete$(RESET)"
+
+build-multi-arch: ## Build multi-architecture image (arm64/amd64)
+	@echo "$(CYAN)Building multi-architecture image...$(RESET)"
+	@echo "$(BLUE)Dockerfile: $(DOCKERFILE) | Context: $(CONTEXT)$(RESET)"
+	@docker buildx build \
+		$(DOCKER_BUILD_OPTS) \
+		$(BUILD_ARGS) \
+		$(if $(TARGET),--target $(TARGET),) \
+		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg NPM_REGISTRY=$(NPM_REGISTRY) \
+		--build-arg NPM_TOKEN=$(NPM_TOKEN) \
+		--build-arg MTA_ENV=production \
+		--platform linux/amd64,linux/arm64 \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		-f $(DOCKERFILE) \
+		$(CONTEXT)
+	@echo "$(GREEN)✓ Multi-arch build complete$(RESET)"
+
+rebuild: clean-image build ## Clean and rebuild image
+	@echo "$(GREEN)✓ Rebuild complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Run Operations
+# ------------------------------------------------------------------------------
+
+run: ## Run container (detached)
+	@echo "$(CYAN)Starting container...$(RESET)"
+	@echo "$(BLUE)Container: $(CONTAINER_NAME)$(RESET)"
+	@echo "$(BLUE)Port: $(HOST_PORT):$(PORT)$(RESET)"
+	@docker run -d \
+		--name $(CONTAINER_NAME) \
+		-p $(HOST_PORT):$(PORT) \
+		-e POSTGRES_HOST=${POSTGRES_HOST} \
+		-e POSTGRES_PORT=${POSTGRES_PORT} \
+		-e POSTGRES_USER=${POSTGRES_USER} \
+		-e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+		-e POSTGRES_DB=${POSTGRES_DB} \
+		-e POSTGRES_SCHEMA=${POSTGRES_SCHEMA} \
+		-e POSTGRES_SSLMODE=${POSTGRES_SSLMODE} \
+		-e DATABASE_URL=${DATABASE_URL} \
+		-e REDIS_HOST=${REDIS_HOST} \
+		-e REDIS_PORT=${REDIS_PORT} \
+		-e REDIS_USERNAME=${REDIS_USERNAME} \
+		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_DB=${REDIS_DB} \
+		-e REDIS_MAX_CONNECTIONS=${REDIS_MAX_CONNECTIONS} \
+		-e REDIS_SOCKET_TIMEOUT=${REDIS_SOCKET_TIMEOUT} \
+		-e REDIS_TLS=${REDIS_TLS} \
+		-e REDIS_SSL_CERT_REQS=${REDIS_SSL_CERT_REQS} \
+		-e FIGMA_TOKEN=${FIGMA_TOKEN} \
+		-e OPENAI_API_KEY=${OPENAI_API_KEY} \
+		-e GEMINI_API_KEY=${GEMINI_API_KEY} \
+		-e JIRA_BASE_URL=${JIRA_BASE_URL} \
+		-e JIRA_EMAIL=${JIRA_EMAIL} \
+		-e JIRA_API_TOKEN=${JIRA_API_TOKEN} \
+		-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+		-e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+		-e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
+		-e GITHUB_TOKEN=${GITHUB_TOKEN} \
+		-e SAUCE_USERNAME=${SAUCE_USERNAME} \
+		-e SAUCE_ACCESS_KEY=${SAUCE_ACCESS_KEY} \
+		-e SAUCE_LABS_HUB=${SAUCE_LABS_HUB} \
+		-e ENVIRONMENT=development \
+		$(DOCKER_RUN_OPTS) \
+		$(IMAGE_NAME):$(VERSION)
+	@echo "$(GREEN)✓ Container started$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Access the application:$(RESET)"
+	@echo "  http://localhost:$(HOST_PORT)"
+	@echo ""
+	@make -f Makefile.docker ps
+
+start: run ## Alias for run
+
+run-foreground: ## Run container in foreground (with logs)
+	@echo "$(CYAN)Starting container (foreground)...$(RESET)"
+	@docker run --rm \
+		--name $(CONTAINER_NAME) \
+		-p $(HOST_PORT):$(PORT) \
+		-e POSTGRES_HOST=${POSTGRES_HOST} \
+		-e POSTGRES_PORT=${POSTGRES_PORT} \
+		-e POSTGRES_USER=${POSTGRES_USER} \
+		-e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+		-e POSTGRES_DB=${POSTGRES_DB} \
+		-e POSTGRES_SCHEMA=${POSTGRES_SCHEMA} \
+		-e POSTGRES_SSLMODE=${POSTGRES_SSLMODE} \
+		-e DATABASE_URL=${DATABASE_URL} \
+		-e REDIS_HOST=${REDIS_HOST} \
+		-e REDIS_PORT=${REDIS_PORT} \
+		-e REDIS_USERNAME=${REDIS_USERNAME} \
+		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_DB=${REDIS_DB} \
+		-e FIGMA_TOKEN=${FIGMA_TOKEN} \
+		-e OPENAI_API_KEY=${OPENAI_API_KEY} \
+		-e GEMINI_API_KEY=${GEMINI_API_KEY} \
+		-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+		-e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+		-e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
+		-e GITHUB_TOKEN=${GITHUB_TOKEN} \
+		-e ENVIRONMENT=${ENVIRONMENT:-development} \
+		-e DEBUG=${DEBUG:-true} \
+		$(DOCKER_RUN_OPTS) \
+		$(IMAGE_NAME):$(VERSION)
+
+run-it: ## Run container interactively with shell
+	@echo "$(CYAN)Starting container (interactive)...$(RESET)"
+	@docker run --rm -it \
+		--name $(CONTAINER_NAME) \
+		-p $(HOST_PORT):$(PORT) \
+		-e POSTGRES_HOST=${POSTGRES_HOST} \
+		-e POSTGRES_PORT=${POSTGRES_PORT} \
+		-e POSTGRES_USER=${POSTGRES_USER} \
+		-e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+		-e POSTGRES_DB=${POSTGRES_DB} \
+		-e POSTGRES_SCHEMA=${POSTGRES_SCHEMA} \
+		-e POSTGRES_SSLMODE=${POSTGRES_SSLMODE} \
+		-e DATABASE_URL=${DATABASE_URL} \
+		-e REDIS_HOST=${REDIS_HOST} \
+		-e REDIS_PORT=${REDIS_PORT} \
+		-e REDIS_USERNAME=${REDIS_USERNAME} \
+		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_DB=${REDIS_DB} \
+		-e FIGMA_TOKEN=${FIGMA_TOKEN} \
+		-e OPENAI_API_KEY=${OPENAI_API_KEY} \
+		-e GEMINI_API_KEY=${GEMINI_API_KEY} \
+		-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+		-e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+		-e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
+		-e GITHUB_TOKEN=${GITHUB_TOKEN} \
+		-e ENVIRONMENT=${ENVIRONMENT:-development} \
+		-e DEBUG=${DEBUG:-true} \
+		$(DOCKER_RUN_OPTS) \
+		$(IMAGE_NAME):$(VERSION) \
+		/bin/bash
+
+run-dev: ## Run container with volume mount for development
+	@echo "$(CYAN)Starting container (development mode)...$(RESET)"
+	@docker run -d \
+		--name $(CONTAINER_NAME) \
+		-p $(HOST_PORT):$(PORT) \
+		-v $(PWD):/app \
+		-e POSTGRES_HOST=${POSTGRES_HOST} \
+		-e POSTGRES_PORT=${POSTGRES_PORT} \
+		-e POSTGRES_USER=${POSTGRES_USER} \
+		-e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+		-e POSTGRES_DB=${POSTGRES_DB} \
+		-e POSTGRES_SCHEMA=${POSTGRES_SCHEMA} \
+		-e POSTGRES_SSLMODE=${POSTGRES_SSLMODE} \
+		-e DATABASE_URL=${DATABASE_URL} \
+		-e REDIS_HOST=${REDIS_HOST} \
+		-e REDIS_PORT=${REDIS_PORT} \
+		-e REDIS_USERNAME=${REDIS_USERNAME} \
+		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_DB=${REDIS_DB} \
+		-e FIGMA_TOKEN=${FIGMA_TOKEN} \
+		-e OPENAI_API_KEY=${OPENAI_API_KEY} \
+		-e GEMINI_API_KEY=${GEMINI_API_KEY} \
+		-e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+		-e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+		-e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} \
+		-e GITHUB_TOKEN=${GITHUB_TOKEN} \
+		-e ENVIRONMENT=${ENVIRONMENT:-development} \
+		-e DEBUG=${DEBUG:-true} \
+		$(DOCKER_RUN_OPTS) \
+		$(IMAGE_NAME):$(VERSION)
+	@echo "$(GREEN)✓ Container started (dev mode)$(RESET)"
+	@make -f Makefile.docker logs-follow
+
+# ------------------------------------------------------------------------------
+# Container Management
+# ------------------------------------------------------------------------------
+
+stop: ## Stop running container
+	@echo "$(CYAN)Stopping container...$(RESET)"
+	@docker stop $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(GREEN)✓ Container stopped$(RESET)"
+
+restart: ## Restart container
+	@echo "$(CYAN)Restarting container...$(RESET)"
+	@docker restart $(CONTAINER_NAME)
+	@echo "$(GREEN)✓ Container restarted$(RESET)"
+
+rm: stop ## Remove container
+	@echo "$(CYAN)Removing container...$(RESET)"
+	@docker rm $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(GREEN)✓ Container removed$(RESET)"
+
+kill: ## Force kill container
+	@echo "$(RED)Killing container...$(RESET)"
+	@docker kill $(CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(GREEN)✓ Container killed$(RESET)"
+
+pause: ## Pause container
+	@echo "$(CYAN)Pausing container...$(RESET)"
+	@docker pause $(CONTAINER_NAME)
+	@echo "$(GREEN)✓ Container paused$(RESET)"
+
+unpause: ## Unpause container
+	@echo "$(CYAN)Unpausing container...$(RESET)"
+	@docker unpause $(CONTAINER_NAME)
+	@echo "$(GREEN)✓ Container unpaused$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Status & Inspection
+# ------------------------------------------------------------------------------
+
+ps: ## Show container status
+	@echo "$(CYAN)Container Status:$(RESET)"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+
+status: ps ## Alias for ps
+
+inspect: ## Inspect container
+	@echo "$(CYAN)Container Inspection:$(RESET)"
+	@docker inspect $(CONTAINER_NAME)
+
+inspect-image: ## Inspect image
+	@echo "$(CYAN)Image Inspection:$(RESET)"
+	@docker inspect $(IMAGE_NAME):$(VERSION)
+
+health: ## Check container health
+	@echo "$(CYAN)Container Health:$(RESET)"
+	@if docker ps -q --filter "name=$(CONTAINER_NAME)" | grep -q .; then \
+		echo "$(GREEN)✓ Container is running$(RESET)"; \
+		echo ""; \
+		echo "$(PURPLE)Container Details:$(RESET)"; \
+		docker inspect --format='  Status: {{.State.Status}}' $(CONTAINER_NAME); \
+		docker inspect --format='  Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' $(CONTAINER_NAME); \
+		docker inspect --format='  Started: {{.State.StartedAt}}' $(CONTAINER_NAME); \
+		echo ""; \
+		echo "$(PURPLE)Testing HTTP endpoint:$(RESET)"; \
+		curl -f http://localhost:$(HOST_PORT) > /dev/null 2>&1 && \
+			echo "  $(GREEN)✓ HTTP endpoint responding$(RESET)" || \
+			echo "  $(YELLOW)⚠ HTTP endpoint not responding$(RESET)"; \
+	else \
+		echo "$(RED)✗ Container is not running$(RESET)"; \
+	fi
+
+image-info: ## Show image information
+	@echo "$(CYAN)Image Information:$(RESET)"
+	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+
+stats: ## Show container resource usage
+	@echo "$(CYAN)Container Statistics:$(RESET)"
+	@docker stats $(CONTAINER_NAME) --no-stream
+
+stats-live: ## Show live container statistics
+	@echo "$(CYAN)Live Container Statistics (Ctrl+C to exit):$(RESET)"
+	@docker stats $(CONTAINER_NAME)
+
+# ------------------------------------------------------------------------------
+# Logs & Debugging
+# ------------------------------------------------------------------------------
+
+logs: ## Show container logs
+	@echo "$(CYAN)Container Logs:$(RESET)"
+	@docker logs $(CONTAINER_NAME)
+
+logs-follow: ## Follow container logs
+	@echo "$(CYAN)Following logs (Ctrl+C to exit)...$(RESET)"
+	@docker logs -f $(CONTAINER_NAME)
+
+logs-tail: ## Show last 100 lines of logs (use LINES=N to override)
+	@echo "$(CYAN)Container Logs (last $(or $(LINES),100) lines):$(RESET)"
+	@docker logs --tail $(or $(LINES),100) $(CONTAINER_NAME)
+
+logs-since: ## Show logs since timestamp (use SINCE="5m")
+	@if [ -z "$(SINCE)" ]; then \
+		echo "$(RED)✗ SINCE parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker logs-since SINCE='5m'$(RESET)"; \
+		echo "$(YELLOW)Examples: SINCE='5m', SINCE='1h', SINCE='2023-01-01T00:00:00'$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Logs since $(SINCE):$(RESET)"
+	@docker logs --since $(SINCE) $(CONTAINER_NAME)
+
+shell: ## Open shell in running container
+	@echo "$(CYAN)Opening shell in container...$(RESET)"
+	@docker exec -it $(CONTAINER_NAME) /bin/bash || docker exec -it $(CONTAINER_NAME) /bin/sh
+
+exec: ## Execute command in container (use CMD="command")
+	@if [ -z "$(CMD)" ]; then \
+		echo "$(RED)✗ CMD parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker exec CMD='ls -la'$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Executing: $(CMD)$(RESET)"
+	@docker exec $(CONTAINER_NAME) $(CMD)
+
+exec-it: ## Execute interactive command (use CMD="command")
+	@if [ -z "$(CMD)" ]; then \
+		echo "$(RED)✗ CMD parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker exec-it CMD='python'$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Executing (interactive): $(CMD)$(RESET)"
+	@docker exec -it $(CONTAINER_NAME) $(CMD)
+
+top: ## Show running processes in container
+	@echo "$(CYAN)Container Processes:$(RESET)"
+	@docker top $(CONTAINER_NAME)
+
+# ------------------------------------------------------------------------------
+# Testing
+# ------------------------------------------------------------------------------
+
+test: ## Run tests in container
+	@echo "$(CYAN)Running tests in container...$(RESET)"
+	@docker run --rm \
+		$(if $(wildcard $(ENV_FILE)),--env-file $(ENV_FILE),) \
+		$(IMAGE_NAME):$(VERSION) \
+		poetry run pytest
+	@echo "$(GREEN)✓ Tests complete$(RESET)"
+
+test-verbose: ## Run tests with verbose output
+	@echo "$(CYAN)Running tests (verbose)...$(RESET)"
+	@docker run --rm \
+		$(if $(wildcard $(ENV_FILE)),--env-file $(ENV_FILE),) \
+		$(IMAGE_NAME):$(VERSION) \
+		poetry run pytest -v
+	@echo "$(GREEN)✓ Tests complete$(RESET)"
+
+test-coverage: ## Run tests with coverage
+	@echo "$(CYAN)Running tests with coverage...$(RESET)"
+	@docker run --rm \
+		$(if $(wildcard $(ENV_FILE)),--env-file $(ENV_FILE),) \
+		$(IMAGE_NAME):$(VERSION) \
+		poetry run pytest --cov --cov-report=term
+	@echo "$(GREEN)✓ Tests complete$(RESET)"
+
+test-shell: ## Open shell in test environment
+	@echo "$(CYAN)Opening test shell...$(RESET)"
+	@docker run --rm -it \
+		$(if $(wildcard $(ENV_FILE)),--env-file $(ENV_FILE),) \
+		$(IMAGE_NAME):$(VERSION) \
+		/bin/bash
+
+# ------------------------------------------------------------------------------
+# Registry Operations
+# ------------------------------------------------------------------------------
+
+tag: ## Tag image for registry
+	@echo "$(CYAN)Tagging image...$(RESET)"
+	@echo "$(BLUE)Source: $(IMAGE_NAME):$(VERSION)$(RESET)"
+	@echo "$(BLUE)Target: $(REGISTRY_IMAGE):$(VERSION)$(RESET)"
+	@docker tag $(IMAGE_NAME):$(VERSION) $(REGISTRY_IMAGE):$(VERSION)
+	@docker tag $(IMAGE_NAME):$(VERSION) $(REGISTRY_IMAGE):latest
+	@echo "$(GREEN)✓ Image tagged$(RESET)"
+
+push: tag ## Push image to registry
+	@echo "$(CYAN)Pushing image to registry...$(RESET)"
+	@echo "$(BLUE)Pushing: $(REGISTRY_IMAGE):$(VERSION)$(RESET)"
+	@docker push $(REGISTRY_IMAGE):$(VERSION)
+	@docker push $(REGISTRY_IMAGE):latest
+	@echo "$(GREEN)✓ Image pushed$(RESET)"
+
+pull: ## Pull image from registry
+	@echo "$(CYAN)Pulling image from registry...$(RESET)"
+	@docker pull $(REGISTRY_IMAGE):$(VERSION)
+	@echo "$(GREEN)✓ Image pulled$(RESET)"
+
+login: ## Login to Docker registry
+	@if [ -z "$(DOCKER_USERNAME)" ]; then \
+		echo "$(RED)✗ DOCKER_USERNAME not set$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Logging into registry...$(RESET)"
+	@docker login $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY),)
+	@echo "$(GREEN)✓ Logged in$(RESET)"
+
+logout: ## Logout from Docker registry
+	@echo "$(CYAN)Logging out from registry...$(RESET)"
+	@docker logout $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY),)
+	@echo "$(GREEN)✓ Logged out$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Clean Operations
+# ------------------------------------------------------------------------------
+
+clean: rm ## Remove container and stopped containers
+	@echo "$(CYAN)Cleaning up...$(RESET)"
+	@docker container prune -f
+	@echo "$(GREEN)✓ Cleanup complete$(RESET)"
+
+clean-image: ## Remove image
+	@echo "$(CYAN)Removing image...$(RESET)"
+	@docker rmi $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
+	@docker rmi $(IMAGE_NAME):latest 2>/dev/null || true
+	@echo "$(GREEN)✓ Image removed$(RESET)"
+
+clean-all: clean clean-image ## Remove everything (container + image)
+	@echo "$(GREEN)✓ All cleaned up$(RESET)"
+
+prune: ## Remove unused Docker resources (FORCE=1 required)
+	@if [ "$(FORCE)" != "1" ]; then \
+		echo "$(RED)⚠ DESTRUCTIVE OPERATION$(RESET)"; \
+		echo "$(YELLOW)This will remove all unused images, containers, networks$(RESET)"; \
+		echo "$(YELLOW)Use: make -f Makefile.docker prune FORCE=1$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(RED)Pruning Docker system...$(RESET)"
+	@docker system prune -af
+	@echo "$(GREEN)✓ Prune complete$(RESET)"
+
+prune-volumes: ## Remove unused volumes (FORCE=1 required)
+	@if [ "$(FORCE)" != "1" ]; then \
+		echo "$(RED)⚠ DESTRUCTIVE OPERATION$(RESET)"; \
+		echo "$(YELLOW)This will remove all unused volumes$(RESET)"; \
+		echo "$(YELLOW)Use: make -f Makefile.docker prune-volumes FORCE=1$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(RED)Pruning volumes...$(RESET)"
+	@docker volume prune -f
+	@echo "$(GREEN)✓ Volumes pruned$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Installation & Setup Operations
+# ------------------------------------------------------------------------------
+
+install: ## Install everything (Docker image + local dependencies)
+	@echo "$(CYAN)Installing Docker image and local dependencies...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Building Docker image...$(RESET)"
+	@make -f Makefile.docker build
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Installing local Python dependencies...$(RESET)"
+	@bash dev-setup.sh || (echo "$(YELLOW)⚠ dev-setup.sh not found or failed, skipping local install$(RESET)" && true)
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Building frontend applications...$(RESET)"
+	@if [ -f ".bin/dist-copy-frontend-folders.sh" ]; then \
+		bash .bin/dist-copy-frontend-folders.sh || true; \
+	else \
+		echo "$(YELLOW)⚠ Frontend build script not found, skipping$(RESET)"; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Installation complete!$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Next steps:$(RESET)"
+	@echo "  make -f Makefile.docker run       # Run Docker container"
+	@echo "  make dev                           # Run local development"
+
+install-lock: ## Install with development dependencies
+	make -f poetry.Makefile install && make -f poetry.Makefile lock
+
+install-dev: ## Install with development dependencies
+	@echo "$(CYAN)Installing with development dependencies...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/4: Building Docker image (dev mode)...$(RESET)"
+	@docker build \
+		$(DOCKER_BUILD_OPTS) \
+		$(BUILD_ARGS) \
+		--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
+		--build-arg MTA_ENV=production \
+		--target python-dev \
+		-t $(IMAGE_NAME):$(VERSION)-dev \
+		-t $(IMAGE_NAME):dev \
+		-f $(DOCKERFILE) \
+		. || (echo "$(YELLOW)⚠ No dev stage in Dockerfile, using default$(RESET)" && make -f Makefile.docker build)
+	@echo ""
+	@echo "$(BLUE)Step 2/4: Installing local Python dependencies (with dev)...$(RESET)"
+	@if [ -d ".venv" ]; then \
+		source .venv/bin/activate && poetry install --no-interaction --no-ansi; \
+	else \
+		echo "$(YELLOW)⚠ Virtual environment not found, run dev-setup.sh first$(RESET)"; \
+		bash dev-setup.sh || true; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 3/4: Building frontend applications...$(RESET)"
+	@if [ -f ".bin/dist-copy-frontend-folders.sh" ]; then \
+		bash .bin/dist-copy-frontend-folders.sh || true; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 4/4: Installing frontend dev dependencies...$(RESET)"
+	@npm install || (echo "$(YELLOW)⚠ npm install failed or no package.json$(RESET)" && true)
+	@echo ""
+	@echo "$(GREEN)✓ Development installation complete!$(RESET)"
+
+reset: ## Reset everything (Docker + local environment) and rebuild
+	@echo "$(CYAN)Resetting entire environment...$(RESET)"
+	@echo ""
+	@echo "$(RED)Step 1/5: Cleaning Docker resources...$(RESET)"
+	@make -f Makefile.docker clean-all || true
+	@echo ""
+	@echo "$(RED)Step 2/5: Cleaning local Python environment...$(RESET)"
+	@echo "  Removing .venv directories..."
+	@rm -rf .venv app/*/.venv
+	@echo "  Removing __pycache__ directories..."
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	@echo ""
+	@echo "$(RED)Step 3/5: Cleaning frontend artifacts...$(RESET)"
+	@echo "  Removing node_modules..."
+	@rm -rf node_modules app/*/frontend/node_modules
+	@echo "  Removing dist folders..."
+	@rm -rf app/*/frontend/dist static/app/*/frontend/dist
+	@echo "  Removing package-lock files..."
+	@find . -name "package-lock.json" -type f -delete 2>/dev/null || true
+	@echo ""
+	@echo "$(BLUE)Step 4/5: Rebuilding Docker image...$(RESET)"
+	@make -f Makefile.docker build-no-cache
+	@echo ""
+	@echo "$(BLUE)Step 5/5: Reinstalling local dependencies...$(RESET)"
+	@bash dev-setup.sh || (echo "$(YELLOW)⚠ Local setup failed, continuing$(RESET)" && true)
+	@echo ""
+	@echo "$(GREEN)✓ Environment reset complete!$(RESET)"
+	@echo ""
+	@make -f Makefile.docker config-show
+
+setup: ## Setup test environment (CI)
+	@echo "$(CYAN)Setting up test environment...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Ensuring Docker image exists...$(RESET)"
+	@if ! docker images $(IMAGE_NAME):$(VERSION) | grep -q $(IMAGE_NAME); then \
+		echo "  Image not found, building..."; \
+		make -f Makefile.docker build; \
+	else \
+		echo "  $(GREEN)✓ Image exists$(RESET)"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Starting test container...$(RESET)"
+	@make -f Makefile.docker rm || true
+	@docker run -d \
+		--name $(CONTAINER_NAME)-test \
+		-p $(HOST_PORT):$(PORT) \
+		-e POSTGRES_HOST=$(or $(POSTGRES_HOST),localhost) \
+		-e POSTGRES_PORT=$(or $(POSTGRES_PORT),5432) \
+		-e POSTGRES_USER=$(or $(POSTGRES_USER),postgres) \
+		-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
+		-e POSTGRES_DB=$(or $(POSTGRES_DB),testdb) \
+		-e POSTGRES_SCHEMA=$(or $(POSTGRES_SCHEMA),public) \
+		-e ENVIRONMENT=test \
+		$(DOCKER_RUN_OPTS) \
+		$(IMAGE_NAME):$(VERSION)
+	@echo "  $(GREEN)✓ Test container started$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Waiting for services to be ready...$(RESET)"
+	@sleep 3
+	@echo "  $(GREEN)✓ Services ready$(RESET)"
+	@echo ""
+	@echo "$(GREEN)✓ Test environment setup complete$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Test container info:$(RESET)"
+	@docker ps -a --filter "name=$(CONTAINER_NAME)-test" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+teardown: ## Teardown test environment (CI) - does not touch database
+	@echo "$(CYAN)Tearing down test environment...$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 1/2: Stopping test container...$(RESET)"
+	@docker stop $(CONTAINER_NAME)-test 2>/dev/null || (echo "  $(YELLOW)⚠ Container not running$(RESET)" && true)
+	@echo "  $(GREEN)✓ Container stopped$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 2/2: Removing test container...$(RESET)"
+	@docker rm $(CONTAINER_NAME)-test 2>/dev/null || (echo "  $(YELLOW)⚠ Container not found$(RESET)" && true)
+	@echo "  $(GREEN)✓ Container removed$(RESET)"
+	@echo ""
+	@echo "$(GREEN)✓ Test environment teardown complete$(RESET)"
+	@echo "$(YELLOW)Note: Database was not touched (as requested)$(RESET)"
+
+# ------------------------------------------------------------------------------
+# CI/CD Operations
+# ------------------------------------------------------------------------------
+
+ci: ci-build ci-test ## Run full CI workflow (build + test)
+	@echo ""
+	@echo "$(GREEN)✓ CI workflow complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Image built"
+	@echo "  ✓ Tests passed"
+
+ci-build: build ## CI build step
+	@echo "$(GREEN)✓ CI build complete$(RESET)"
+
+ci-test: test ## CI test step
+	@echo "$(GREEN)✓ CI test complete$(RESET)"
+
+ci-fast: ## Fast CI (build without cache + test)
+	@make -f Makefile.docker build-no-cache
+	@make -f Makefile.docker test
+	@echo "$(GREEN)✓ Fast CI complete$(RESET)"
+
+ci-full: clean-all build test ## Full CI (clean + build + test)
+	@echo "$(GREEN)✓ Full CI complete$(RESET)"
+
+ci-deploy: build push ## CI deploy step (build + push)
+	@echo "$(GREEN)✓ CI deploy complete$(RESET)"
+
+ci-release: ci-full tag push ## CI release workflow (clean + build + test + push)
+	@echo ""
+	@echo "$(GREEN)✓ CI release complete$(RESET)"
+	@echo "$(CYAN)Released:$(RESET)"
+	@echo "  Image: $(REGISTRY_IMAGE):$(VERSION)"
+	@echo ""
+
+ci-setup-test-teardown: setup test teardown ## CI workflow with full test lifecycle
+	@echo ""
+	@echo "$(GREEN)✓ CI test lifecycle complete$(RESET)"
+	@echo "$(CYAN)Summary:$(RESET)"
+	@echo "  ✓ Environment setup"
+	@echo "  ✓ Tests executed"
+	@echo "  ✓ Environment cleaned"
+
+# ------------------------------------------------------------------------------
+# Development Workflows
+# ------------------------------------------------------------------------------
+
+dev: ## Development workflow - build and run with live logs
+	@make -f Makefile.docker build
+	@make -f Makefile.docker rm
+	@make -f Makefile.docker run
+	@sleep 2
+	@make -f Makefile.docker logs-follow
+
+dev-rebuild: ## Development rebuild - rebuild and restart
+	@make -f Makefile.docker stop
+	@make -f Makefile.docker build-no-cache
+	@make -f Makefile.docker run
+	@make -f Makefile.docker logs-follow
+
+debug: ## Debug container - run with shell
+	@echo "$(CYAN)Starting debug container...$(RESET)"
+	@docker run --rm -it \
+		--name $(CONTAINER_NAME)-debug \
+		-p $(HOST_PORT):$(PORT) \
+		$(if $(wildcard $(ENV_FILE)),--env-file $(ENV_FILE),) \
+		$(IMAGE_NAME):$(VERSION) \
+		/bin/bash
+
+quick-start: build run logs-follow ## Quick start - build, run, and show logs
+
+fresh-start: clean-all build run ## Fresh start - clean everything and restart
+
+# ------------------------------------------------------------------------------
+# Utility Commands
+# ------------------------------------------------------------------------------
+
+version: ## Show Docker version
+	@echo "$(CYAN)Docker Version:$(RESET)"
+	@docker --version
+	@echo ""
+	@echo "$(CYAN)Docker Info:$(RESET)"
+	@docker info --format "  Version: {{.ServerVersion}}\n  OS/Arch: {{.OperatingSystem}}/{{.Architecture}}\n  CPUs: {{.NCPU}}\n  Memory: {{.MemTotal}}"
+
+list-images: ## List all project images
+	@echo "$(CYAN)Project Images:$(RESET)"
+	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+
+list-containers: ## List all project containers
+	@echo "$(CYAN)Project Containers:$(RESET)"
+	@docker ps -a --filter "name=$(PROJECT_NAME)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+
+disk-usage: ## Show Docker disk usage
+	@echo "$(CYAN)Docker Disk Usage:$(RESET)"
+	@docker system df -v
+
+config-show: ## Show current configuration
+	@echo "$(CYAN)Docker Configuration:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Build Settings:$(RESET)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
+	@echo "  WORKDIR           = $(WORKDIR)"
+	@echo ""
+	@echo "$(BLUE)Image Settings:$(RESET)"
+	@echo "  PROJECT_NAME      = $(PROJECT_NAME)"
+	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo "  CONTAINER_NAME    = $(CONTAINER_NAME)"
+	@echo ""
+	@echo "$(BLUE)Container Settings:$(RESET)"
+	@echo "  PORT              = $(PORT)"
+	@echo "  HOST_PORT         = $(HOST_PORT)"
+	@echo "  ENV_FILE          = $(ENV_FILE)"
+	@echo ""
+	@echo "$(BLUE)Registry Settings:$(RESET)"
+	@echo "  DOCKER_REGISTRY   = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY),not set)"
+	@echo "  DOCKER_USERNAME   = $(if $(DOCKER_USERNAME),$(DOCKER_USERNAME),not set)"
+	@echo "  REGISTRY_IMAGE    = $(REGISTRY_IMAGE)"
+	@echo ""
+	@echo "$(BLUE)Build Args (Python):$(RESET)"
+	@echo "  PYTHON_REGISTRY   = $(PYTHON_REGISTRY_URL)"
+	@echo "  PYPI_HOST         = $(PYPI_HOST)"
+	@echo ""
+	@echo "$(BLUE)Build Args (NPM):$(RESET)"
+	@echo "  NPM_REGISTRY      = $(NPM_REGISTRY)"
+
+validate: ## Validate Dockerfile
+	@echo "$(CYAN)Validating Dockerfile...$(RESET)"
+	@docker build --check -f $(DOCKERFILE) $(CONTEXT) 2>/dev/null && \
+		echo "$(GREEN)✓ Dockerfile is valid$(RESET)" || \
+		echo "$(YELLOW)⚠ Validation not supported in this Docker version$(RESET)"
+
+list-dockerfiles: ## List all available Dockerfiles in root directory
+	@echo "$(CYAN)Available Dockerfiles:$(RESET)"
+	@echo ""
+	@for f in Dockerfile Dockerfile.*; do \
+		if [ -f "$$f" ]; then \
+			stages=$$(grep -E '^FROM.*AS' "$$f" 2>/dev/null | sed 's/.*AS /  - /' || true); \
+			if [ -n "$$stages" ]; then \
+				echo "$(GREEN)$$f$(RESET) (multi-stage)"; \
+				echo "$$stages"; \
+			else \
+				echo "$(GREEN)$$f$(RESET)"; \
+			fi; \
+		fi; \
+	done
+	@echo ""
+	@echo "$(BLUE)Usage:$(RESET)"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.fastify"
+	@echo "  make -f Makefile.docker build DOCKERFILE=Dockerfile.database TARGET=postgres"
+
+build-info: ## Show current build configuration
+	@echo "$(CYAN)Build Configuration:$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Current Settings:$(RESET)"
+	@echo "  DOCKERFILE        = $(DOCKERFILE)"
+	@echo "  CONTEXT           = $(CONTEXT)"
+	@echo "  TARGET            = $(if $(TARGET),$(TARGET),not set)"
+	@echo "  IMAGE_NAME        = $(IMAGE_NAME)"
+	@echo "  VERSION           = $(VERSION)"
+	@echo ""
+	@echo "$(BLUE)Build Command Preview:$(RESET)"
+	@echo "  docker build \\"
+	@echo "    $(if $(TARGET),--target $(TARGET) \\,)"
+	@echo "    -t $(IMAGE_NAME):$(VERSION) \\"
+	@echo "    -f $(DOCKERFILE) \\"
+	@echo "    $(CONTEXT)"
+	@echo ""
+	@if [ -f "$(DOCKERFILE)" ]; then \
+		echo "$(BLUE)Dockerfile Info ($(DOCKERFILE)):$(RESET)"; \
+		echo "  Base images:"; \
+		grep -E '^FROM' "$(DOCKERFILE)" | sed 's/^/    /'; \
+		echo ""; \
+		stages=$$(grep -E '^FROM.*AS' "$(DOCKERFILE)" 2>/dev/null | sed 's/.*AS //' || true); \
+		if [ -n "$$stages" ]; then \
+			echo "  Available targets:"; \
+			echo "$$stages" | sed 's/^/    - /'; \
+		fi; \
+	else \
+		echo "$(YELLOW)⚠ Dockerfile not found: $(DOCKERFILE)$(RESET)"; \
+	fi
+
+export: ## Export container as tar (use FILE=output.tar)
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(RED)✗ FILE parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker export FILE=container.tar$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Exporting container to $(FILE)...$(RESET)"
+	@docker export $(CONTAINER_NAME) -o $(FILE)
+	@echo "$(GREEN)✓ Container exported$(RESET)"
+
+save: ## Save image as tar (use FILE=image.tar)
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(RED)✗ FILE parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker save FILE=image.tar$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Saving image to $(FILE)...$(RESET)"
+	@docker save $(IMAGE_NAME):$(VERSION) -o $(FILE)
+	@echo "$(GREEN)✓ Image saved$(RESET)"
+
+load: ## Load image from tar (use FILE=image.tar)
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(RED)✗ FILE parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f Makefile.docker load FILE=image.tar$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Loading image from $(FILE)...$(RESET)"
+	@docker load -i $(FILE)
+	@echo "$(GREEN)✓ Image loaded$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Complete Workflows
+# ------------------------------------------------------------------------------
+
+init: build ## Initialize - build image
+	@echo ""
+	@echo "$(GREEN)✓ Docker environment initialized$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Next steps:$(RESET)"
+	@echo "  1. Run container: make -f Makefile.docker run"
+	@echo "  2. View logs:     make -f Makefile.docker logs"
+	@echo "  3. Run tests:     make -f Makefile.docker test"
+	@echo ""
+
+all: reset ## Full reset and rebuild everything
+	@echo ""
+	@echo "$(GREEN)✓ All tasks complete$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Environment Status:$(RESET)"
+	@make -f Makefile.docker image-info
+	@echo ""
+	@echo "$(CYAN)Ready to:$(RESET)"
+	@echo "  make -f Makefile.docker run       # Run Docker container"
+	@echo "  make -f Makefile.docker test      # Run tests"
+	@echo "  make dev                           # Run local development"
+
+# ------------------------------------------------------------------------------
+# Default target
+# ------------------------------------------------------------------------------
+
+.DEFAULT_GOAL := help

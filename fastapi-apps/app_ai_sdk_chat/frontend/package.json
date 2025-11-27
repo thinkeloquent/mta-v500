@@ -1,0 +1,33 @@
+{
+  "name": "@internal/app-ai-sdk-chat-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "lint": "echo 'Linting not configured yet'"
+  },
+  "dependencies": {
+    "lucide-react": "^0.552.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.5.2",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "~5.9.3",
+    "vite": "^6.3.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

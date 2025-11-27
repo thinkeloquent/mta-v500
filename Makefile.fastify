@@ -1,0 +1,272 @@
+# Makefile.fastify - Node.js/Fastify development tasks
+# Implements CI targets: install, build, test, run, clean
+#> make -f ./Makefile.fastify dev
+NODE := node
+PNPM := pnpm
+NX := pnpm nx
+PORT := 3000
+COMMON_DIR := ./common
+
+# Default target
+.DEFAULT_GOAL := help
+
+.PHONY: setup install build test run clean dev dev-app dev-all generate-types validate-schemas help \
+	docker-build docker-build-no-cache docker-build-verbose docker-build-multi-arch \
+	docker-run docker-run-foreground docker-run-it docker-run-dev \
+	docker-stop docker-restart docker-rm docker-kill \
+	docker-ps docker-logs docker-logs-follow docker-shell docker-stats \
+	docker-push docker-pull docker-clean docker-clean-image \
+	docker-ci docker-deploy docker-rebuild docker-recreate docker-refresh
+
+# =============================================================================
+# CI Targets (called by root Makefile)
+# =============================================================================
+
+setup: ## Run full monorepo setup (Fastify + FastAPI + Vite)
+	@echo "[Fastify] Running full monorepo setup..."
+	@$(MAKE) -f Makefile install
+
+install:
+	@echo "[Fastify] Installing dependencies with pnpm..."
+	$(PNPM) install
+
+generate-types:
+	@echo "[Fastify] Generating types from $(COMMON_DIR)/schemas..."
+	@chmod +x $(COMMON_DIR)/scripts/generate-types.sh
+	@$(COMMON_DIR)/scripts/generate-types.sh
+
+validate-schemas:
+	@echo "[Fastify] Validating schemas in $(COMMON_DIR)..."
+	@chmod +x $(COMMON_DIR)/scripts/validate-schemas.sh
+	@$(COMMON_DIR)/scripts/validate-schemas.sh
+
+build: generate-types validate-schemas
+	@echo "[Fastify] Building Fastify apps with nx..."
+	@echo "[Fastify] Note: Fastify apps typically don't require build step (Node.js native ESM)"
+	@if [ -z "$$(find fastify-apps -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -v '\.gitkeep')" ]; then \
+		echo "[Fastify] No apps to build yet. This is expected."; \
+	else \
+		$(NX) run-many --target=build --projects='fastify-apps/*' --parallel || true; \
+	fi
+
+test:
+	@echo "[Fastify] Running tests with nx..."
+	@if [ -z "$$(find fastify-apps -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -v '\.gitkeep')" ]; then \
+		echo "[Fastify] No apps to test yet. This is expected."; \
+	else \
+		$(NX) run-many --target=test --projects='fastify-apps/*' --parallel || true; \
+	fi
+
+run: generate-types
+	@echo "[Fastify] Starting Fastify apps on port $(PORT)..."
+	@if [ -z "$$(find fastify-apps -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -v '\.gitkeep')" ]; then \
+		echo "[Fastify] No apps to run yet. This is expected."; \
+		echo "[Fastify] See fastify-apps/README.md for instructions on creating apps."; \
+	else \
+		$(NX) run-many --target=start --projects='fastify-apps/*' || true; \
+	fi
+
+clean:
+	@echo "[Fastify] Cleaning build artifacts..."
+	@rm -rf node_modules/.cache
+	@rm -rf static/app/*
+	@find fastify-apps -name "dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@echo "[Fastify] Clean complete"
+
+# =============================================================================
+# Development Targets
+# =============================================================================
+
+dev:
+	@echo "[Fastify] Starting main Fastify orchestrator with hot-reload..."
+	@echo "[Fastify] - Node.js --watch will restart on file changes"
+	@echo "[Fastify] - Port: $(PORT)"
+	@echo ""
+	$(NX) run @internal/fastify-server:dev
+
+dev-app:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME parameter is required. Usage: make -f Makefile.fastify dev-app NAME=my-app"; \
+		exit 1; \
+	fi
+	@if [ ! -d "fastify-apps/$(NAME)" ]; then \
+		echo "Error: Fastify app 'fastify-apps/$(NAME)' not found."; \
+		exit 1; \
+	fi
+	@echo "[Fastify] Starting $(NAME) with hot-reload..."
+	cd fastify-apps/$(NAME) && $(PNPM) run dev
+
+dev-all: generate-types
+	@echo "[Fastify] Starting all Fastify apps simultaneously with nx..."
+	@echo ""
+	@if [ -z "$$(find fastify-apps -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -v '\.gitkeep')" ]; then \
+		echo "[Fastify] No apps to run yet. This is expected."; \
+		echo "[Fastify] See fastify-apps/README.md for instructions on creating apps."; \
+	else \
+		echo "[Fastify] Press Ctrl+C to stop all services"; \
+		echo ""; \
+		$(NX) run-many --target=dev --projects='fastify-apps/*' --parallel; \
+	fi
+
+# =============================================================================
+# Docker Wrapper Targets (delegate to Makefile.docker)
+# =============================================================================
+# All Docker operations are now centralized in Makefile.docker
+# These targets provide backwards compatibility and Fastify-specific defaults
+
+# Fastify Docker defaults
+FASTIFY_IMAGE_NAME ?= mta-fastify
+FASTIFY_DOCKERFILE ?= Dockerfile.fastify
+FASTIFY_PORT ?= 3000
+
+# Build targets - delegate to Makefile.docker
+docker-build: ## Build Fastify Docker image
+	@$(MAKE) -f Makefile.docker build \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		PORT=$(FASTIFY_PORT)
+
+docker-build-no-cache: ## Build without cache
+	@$(MAKE) -f Makefile.docker build-no-cache \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-build-verbose: ## Build with verbose output
+	@$(MAKE) -f Makefile.docker build-verbose \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-build-multi-arch: ## Build multi-architecture image
+	@$(MAKE) -f Makefile.docker build-multi-arch \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+# Run targets - delegate to Makefile.docker
+docker-run: ## Run Fastify container
+	@$(MAKE) -f Makefile.docker run \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		CONTAINER_NAME=$(FASTIFY_IMAGE_NAME) \
+		PORT=$(FASTIFY_PORT)
+
+docker-run-foreground: ## Run in foreground
+	@$(MAKE) -f Makefile.docker run-foreground \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		CONTAINER_NAME=$(FASTIFY_IMAGE_NAME) \
+		PORT=$(FASTIFY_PORT)
+
+docker-run-it: ## Run interactively
+	@$(MAKE) -f Makefile.docker run-it \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		CONTAINER_NAME=$(FASTIFY_IMAGE_NAME) \
+		PORT=$(FASTIFY_PORT)
+
+docker-run-dev: ## Run with dev volumes
+	@$(MAKE) -f Makefile.docker run-dev \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		CONTAINER_NAME=$(FASTIFY_IMAGE_NAME) \
+		PORT=$(FASTIFY_PORT)
+
+# Control targets - delegate to Makefile.docker
+docker-stop: ## Stop container
+	@$(MAKE) -f Makefile.docker stop CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-restart: ## Restart container
+	@$(MAKE) -f Makefile.docker restart CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-rm: ## Remove container
+	@$(MAKE) -f Makefile.docker rm CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-kill: ## Force kill container
+	@$(MAKE) -f Makefile.docker kill CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+# Monitoring targets - delegate to Makefile.docker
+docker-ps: ## Show container status
+	@$(MAKE) -f Makefile.docker ps CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-logs: ## Show container logs
+	@$(MAKE) -f Makefile.docker logs CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-logs-follow: ## Follow container logs
+	@$(MAKE) -f Makefile.docker logs-follow CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-shell: ## Open shell in container
+	@$(MAKE) -f Makefile.docker shell CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-stats: ## Show resource usage
+	@$(MAKE) -f Makefile.docker stats CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+# Registry targets - delegate to Makefile.docker
+docker-push: ## Push to registry
+	@$(MAKE) -f Makefile.docker push IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-pull: ## Pull from registry
+	@$(MAKE) -f Makefile.docker pull IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+# Cleanup targets - delegate to Makefile.docker
+docker-clean: ## Remove container and image
+	@$(MAKE) -f Makefile.docker clean-all \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME) \
+		CONTAINER_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-clean-image: ## Remove image only
+	@$(MAKE) -f Makefile.docker clean-image IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+# CI targets - delegate to Makefile.docker
+docker-ci: ## CI workflow (build + test)
+	@$(MAKE) -f Makefile.docker ci \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+docker-deploy: ## Deploy (build + push)
+	@$(MAKE) -f Makefile.docker ci-deploy \
+		DOCKERFILE=$(FASTIFY_DOCKERFILE) \
+		IMAGE_NAME=$(FASTIFY_IMAGE_NAME)
+
+# Compound targets
+docker-rebuild: docker-clean-image docker-build ## Clean and rebuild
+
+docker-recreate: docker-rm docker-run ## Restart container (keeps image)
+
+docker-refresh: docker-clean docker-build docker-run ## Full refresh
+
+# =============================================================================
+# Help
+# =============================================================================
+
+help:
+	@echo "Makefile.fastify - Node.js/Fastify Development (pnpm + nx)"
+	@echo ""
+	@echo "Setup:"
+	@echo "  make -f Makefile.fastify setup                 - Full monorepo setup (Fastify + FastAPI + Vite)"
+	@echo "  make -f Makefile.fastify install               - Install Fastify dependencies only (pnpm install)"
+	@echo ""
+	@echo "CI Targets:"
+	@echo "  make -f Makefile.fastify build                 - Build all Fastify apps (nx run-many)"
+	@echo "  make -f Makefile.fastify test                  - Run all tests (nx run-many)"
+	@echo "  make -f Makefile.fastify run                   - Start Fastify apps locally"
+	@echo "  make -f Makefile.fastify clean                 - Clean build artifacts"
+	@echo ""
+	@echo "Development Targets:"
+	@echo "  make -f Makefile.fastify dev                   - Start main app with hot-reload (nx)"
+	@echo "  make -f Makefile.fastify dev-app NAME=<app>    - Start specific app with hot-reload (nx)"
+	@echo "  make -f Makefile.fastify dev-all               - Start all apps simultaneously (nx)"
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  make -f Makefile.fastify generate-types        - Generate types from schemas"
+	@echo "  make -f Makefile.fastify validate-schemas      - Validate all schemas"
+	@echo ""
+	@echo "Docker Targets (wrappers for Makefile.docker):"
+	@echo "  make -f Makefile.fastify docker-build          - Build Fastify Docker image"
+	@echo "  make -f Makefile.fastify docker-run            - Run container"
+	@echo "  make -f Makefile.fastify docker-stop           - Stop container"
+	@echo "  make -f Makefile.fastify docker-logs           - Show logs"
+	@echo "  make -f Makefile.fastify docker-shell          - Open shell"
+	@echo "  make -f Makefile.fastify docker-clean          - Remove container and image"
+	@echo ""
+	@echo "Note: All docker-* targets delegate to Makefile.docker with Fastify defaults."
+	@echo "For full Docker options, use: make -f Makefile.docker help"
+	@echo ""
+	@echo "Fastify Docker Defaults:"
+	@echo "  FASTIFY_IMAGE_NAME  = $(FASTIFY_IMAGE_NAME)"
+	@echo "  FASTIFY_DOCKERFILE  = $(FASTIFY_DOCKERFILE)"
+	@echo "  FASTIFY_PORT        = $(FASTIFY_PORT)"

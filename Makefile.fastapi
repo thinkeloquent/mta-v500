@@ -1,0 +1,639 @@
+# Makefile.fastapi - FastAPI development tasks
+# Implements CI targets: install, build, test, run, clean
+# Updated paths: app/ → fastapi-apps/
+
+.PHONY: setup install build test run clean help dev-install dev dev-force dev-app dev-all test-app test-integration \
+	docker-check docker-start-daemon \
+	docker-build docker-build-no-cache docker-build-verbose docker-build-multi-arch docker-rebuild docker-recreate docker-refresh \
+	docker-run docker-start docker-run-foreground docker-run-it docker-run-dev \
+	docker-stop docker-restart docker-rm docker-kill docker-pause docker-unpause \
+	docker-ps docker-status docker-inspect docker-inspect-image docker-health docker-image-info docker-stats docker-stats-live \
+	docker-logs docker-logs-follow docker-logs-tail docker-logs-since \
+	docker-shell docker-exec \
+	docker-tag docker-push docker-pull docker-login \
+	docker-clean-container docker-clean-image docker-clean docker-prune docker-prune-all \
+	docker-network-create docker-network-rm docker-network-ls \
+	docker-ci docker-test docker-deploy
+
+# ============================================================================
+# Root FastAPI Orchestrator - Manage All FastAPI App Migrations
+# ============================================================================
+#
+# This Makefile orchestrates FastAPI database migrations across all FastAPI
+# applications in the monorepo. It delegates to each app's individual
+# Makefile.fastapi while providing centralized control.
+#
+# Usage:
+#   make -f Makefile.fastapi help           # Show this help
+#   make -f Makefile.fastapi dev            # Start dev server (normal)
+#   make -f Makefile.fastapi dev-force      # Rebuild venv and start server (fixes stale paths)
+
+# Usage Examples
+
+PYTHON := python3.11
+VENV := .venv
+VENV_BIN := $(VENV)/bin
+POETRY := $(VENV_BIN)/poetry
+
+# Sub-app directories (updated paths)
+HELLO_APP := fastapi-apps/hello
+HELLO_VENV := $(HELLO_APP)/.venv
+
+# Default ports
+MAIN_PORT := 8080
+HELLO_PORT := 8081
+
+# =============================================================================
+# CI Targets (called by root Makefile)
+# =============================================================================
+
+setup: ## Run full monorepo setup (Fastify + FastAPI + Vite)
+	@echo "[FastAPI] Running full monorepo setup..."
+	@$(MAKE) -f Makefile install
+
+install: dev-install
+	@echo "[FastAPI] Installation complete"
+
+build:
+	@echo "[FastAPI] Building FastAPI apps..."
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Error: Virtual environment not found."; \
+		echo "Run: make -f Makefile.fastapi install"; \
+		exit 1; \
+	fi
+	@echo "[FastAPI] Build complete"
+
+test:
+	@echo "[FastAPI] Running all tests..."
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Error: Virtual environment not found."; \
+		echo "Run: make -f Makefile.fastapi install"; \
+		exit 1; \
+	fi
+	@$(VENV_BIN)/pytest tests/ -v
+
+run: dev
+	@echo "[FastAPI] Running FastAPI orchestrator"
+
+clean:
+	@echo "[FastAPI] Cleaning up development environment..."
+	@rm -rf $(VENV)
+	@rm -rf $(HELLO_VENV)
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@echo "[FastAPI] Clean complete!"
+
+# =============================================================================
+# Development Commands (original functionality preserved)
+# =============================================================================
+
+dev-install:
+	@echo "[FastAPI] Setting up development environment..."
+	@bash ./dev-setup.sh
+
+dev:
+	@echo "[FastAPI] Starting main orchestrator with hot-reload on port $(MAIN_PORT)..."
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Error: Virtual environment not found."; \
+		echo "Run: make -f Makefile.fastapi install"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(VENV_BIN)/uvicorn" ]; then \
+		echo "Error: uvicorn not found in virtual environment."; \
+		echo "Run: make -f Makefile.fastapi install"; \
+		exit 1; \
+	fi
+	@cd fastapi-apps/app && PYTHONUNBUFFERED=1 ../../$(VENV_BIN)/uvicorn main:app --host 0.0.0.0 --port $(MAIN_PORT) --reload \
+		--reload-exclude '../../.venv/*' \
+		--reload-exclude '__pycache__/*' \
+		--reload-exclude '*.pyc' \
+		--reload-exclude '.pytest_cache/*' \
+		--reload-exclude '*.egg-info/*'
+
+dev-force:
+	@echo "[FastAPI] Force rebuilding environment and clearing all caches..."
+	@echo "[FastAPI] This will fix issues with:"
+	@echo "  - Stale Python shebangs pointing to old directories"
+	@echo "  - Cached bytecode from different locations"
+	@echo "  - Missing or corrupted virtual environment"
+	@echo "  - Vite build cache causing stale assets"
+	@echo ""
+	@# Remove old virtual environment first (ensures clean reset)
+	@echo "[FastAPI] Removing old virtual environment..."
+	@rm -rf $(VENV)
+	@# Kill any running servers
+	@echo "[FastAPI] Killing any running servers..."
+	@-pkill -9 -f uvicorn 2>/dev/null || true
+	@-pkill -9 -f "vite.*dev" 2>/dev/null || true
+	@sleep 1
+	@# Clean all Python caches
+	@echo "[FastAPI] Cleaning Python caches..."
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@# Clean Vite caches
+	@echo "[Vite] Cleaning Vite caches and node_modules/.vite..."
+	@find fastapi-apps -type d -name "node_modules/.vite" -exec rm -rf {} + 2>/dev/null || true
+	@find packages-js -type d -name "node_modules/.vite" -exec rm -rf {} + 2>/dev/null || true
+	@find . -name ".vite" -type d -exec rm -rf {} + 2>/dev/null || true
+	@# Clean dist directories
+	@echo "[Vite] Cleaning old dist directories..."
+	@find fastapi-apps -path "*/frontend/dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find packages-js -path "*/dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@# Create fresh virtual environment
+	@echo "[FastAPI] Creating fresh virtual environment with $(PYTHON)..."
+	@$(PYTHON) -m venv $(VENV)
+	@# Create app symlink if it doesn't exist (skip if app is already a directory)
+	@echo "[FastAPI] Setting up app symlink..."
+	@if [ ! -L fastapi-apps/app ] && [ ! -d fastapi-apps/app ]; then \
+		cd fastapi-apps && ln -s . app; \
+	fi
+	@echo ""
+	@echo "[SUCCESS] Environment rebuilt and all caches cleared!"
+	@echo "[FastAPI] Installing all dependencies via dev-install..."
+	@make -f Makefile.fastapi dev-install
+	@echo "[FastAPI] Starting server with fresh build..."
+	@make -f Makefile.fastapi dev
+
+dev-app:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME parameter is required. Usage: make -f Makefile.fastapi dev-app NAME=hello"; \
+		exit 1; \
+	fi
+	@if [ ! -d "fastapi-apps/$(NAME)" ]; then \
+		echo "Error: Sub-app 'fastapi-apps/$(NAME)' not found."; \
+		exit 1; \
+	fi
+	@echo "[FastAPI] Starting $(NAME) sub-app with hot-reload..."
+	@cd fastapi-apps/$(NAME) && bash ./dev.sh
+
+dev-all:
+	@echo "[FastAPI] Starting all apps..."
+	@echo "Main orchestrator on port $(MAIN_PORT)"
+	@echo "Hello sub-app on port $(HELLO_PORT)"
+	@echo ""
+	@echo "Press Ctrl+C to stop all services"
+	@trap 'kill 0' EXIT; \
+		$(VENV_BIN)/uvicorn app.main:app --host 0.0.0.0 --port $(MAIN_PORT) --reload \
+			--reload-exclude '.venv/*' \
+			--reload-exclude '__pycache__/*' \
+			--reload-exclude '*.pyc' \
+			--reload-exclude '.pytest_cache/*' \
+			--reload-exclude '*.egg-info/*' & \
+		cd $(HELLO_APP) && bash ./dev.sh & \
+		wait
+
+test-app:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME parameter is required. Usage: make -f Makefile.fastapi test-app NAME=hello"; \
+		exit 1; \
+	fi
+	@if [ ! -d "fastapi-apps/$(NAME)" ]; then \
+		echo "Error: Sub-app 'fastapi-apps/$(NAME)' not found."; \
+		exit 1; \
+	fi
+	@echo "[FastAPI] Running $(NAME) sub-app tests..."
+	@cd fastapi-apps/$(NAME) && \
+		if [ -d ".venv" ]; then \
+			.venv/bin/pytest tests/ -v; \
+		else \
+			poetry run pytest tests/ -v; \
+		fi
+
+test-integration:
+	@echo "[FastAPI] Running integration tests..."
+	@$(VENV_BIN)/pytest tests/integration/ -v
+
+# =============================================================================
+# Docker CI Targets
+# =============================================================================
+
+# Docker Configuration
+DOCKER_IMAGE_NAME ?= mta-fastapi
+DOCKER_IMAGE_TAG ?= latest
+DOCKER_CONTAINER_NAME ?= mta-fastapi
+DOCKERFILE ?= Dockerfile.fastapi
+DOCKER_NETWORK ?= mta-network
+DOCKER_PORT ?= 8080
+HOST_PORT ?= $(MAIN_PORT)
+
+# Helper function to check if Docker is running
+define check_docker
+	@if ! docker info > /dev/null 2>&1; then \
+		echo ""; \
+		echo "❌ Error: Docker daemon is not running!"; \
+		echo ""; \
+		echo "📋 To fix this:"; \
+		echo "   1. Start Docker Desktop: open -a Docker"; \
+		echo "   2. Wait 30 seconds for Docker to initialize"; \
+		echo "   3. Verify with: docker version"; \
+		echo "   4. Then retry this command"; \
+		echo ""; \
+		echo "💡 Or check Docker status: make -f Makefile.fastapi docker-check"; \
+		echo ""; \
+		exit 1; \
+	fi
+endef
+
+# Docker Registry Configuration
+DOCKER_REGISTRY ?=
+DOCKER_USERNAME ?=
+REGISTRY_IMAGE = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(if $(DOCKER_USERNAME),$(DOCKER_USERNAME)/,)$(DOCKER_IMAGE_NAME)
+
+# Full image name with tag
+DOCKER_FULL_IMAGE = $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
+
+# =============================================================================
+# Docker Status & Health Targets
+# =============================================================================
+
+docker-check: ## Check if Docker daemon is running
+	@echo "[FastAPI] Checking Docker daemon status..."
+	@if docker info > /dev/null 2>&1; then \
+		echo "✅ Docker daemon is running"; \
+		echo ""; \
+		docker version --format 'Docker Engine: {{.Server.Version}}'; \
+		echo ""; \
+		echo "📊 System info:"; \
+		docker info --format '  Containers: {{.Containers}} ({{.ContainersRunning}} running)'; \
+		docker info --format '  Images: {{.Images}}'; \
+		docker info --format '  Server Version: {{.ServerVersion}}'; \
+		docker info --format '  Storage Driver: {{.Driver}}'; \
+	else \
+		echo "❌ Docker daemon is NOT running!"; \
+		echo ""; \
+		echo "To start Docker:"; \
+		echo "  macOS:  open -a Docker"; \
+		echo "  Linux:  sudo systemctl start docker"; \
+		echo ""; \
+		echo "Then wait 30 seconds and retry."; \
+		exit 1; \
+	fi
+
+docker-start-daemon: ## Start Docker daemon (macOS only)
+	@echo "[FastAPI] Starting Docker Desktop..."
+	@open -a Docker
+	@echo "⏳ Waiting for Docker to start (this may take 30-60 seconds)..."
+	@for i in 1 2 3 4 5 6 7 8 9 10 11 12; do \
+		if docker info > /dev/null 2>&1; then \
+			echo "✅ Docker daemon is running!"; \
+			exit 0; \
+		fi; \
+		echo "   Still waiting... ($$i/12)"; \
+		sleep 5; \
+	done; \
+	echo "❌ Docker failed to start within 60 seconds"; \
+	echo "Please start Docker Desktop manually and wait for it to fully initialize"; \
+	exit 1
+
+# =============================================================================
+# Docker Build Targets
+# =============================================================================
+
+docker-build: ## Build Docker image (builds inside Docker)
+	$(call check_docker)
+	@echo "[FastAPI] Building Docker image: $(DOCKER_FULL_IMAGE)"
+	@echo "[FastAPI] Note: Build happens inside Docker (npm install + tsc + vite)"
+	docker build -f $(DOCKERFILE) -t $(DOCKER_FULL_IMAGE) .
+	@echo "[FastAPI] ✓ Image built: $(DOCKER_FULL_IMAGE)"
+
+docker-build-no-cache: ## Build Docker image without cache
+	$(call check_docker)
+	@echo "[FastAPI] Building Docker image (no cache): $(DOCKER_FULL_IMAGE)"
+	docker build --no-cache -f $(DOCKERFILE) -t $(DOCKER_FULL_IMAGE) .
+	@echo "[FastAPI] ✓ Image built: $(DOCKER_FULL_IMAGE)"
+
+docker-build-verbose: ## Build Docker image with verbose output
+	$(call check_docker)
+	@echo "[FastAPI] Building Docker image (verbose): $(DOCKER_FULL_IMAGE)"
+	docker build --progress=plain -f $(DOCKERFILE) -t $(DOCKER_FULL_IMAGE) .
+	@echo "[FastAPI] ✓ Image built: $(DOCKER_FULL_IMAGE)"
+
+docker-build-multi-arch: ## Build multi-architecture image (arm64/amd64)
+	$(call check_docker)
+	@echo "[FastAPI] Building multi-arch image: $(DOCKER_FULL_IMAGE)"
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-f $(DOCKERFILE) -t $(DOCKER_FULL_IMAGE) .
+	@echo "[FastAPI] ✓ Multi-arch image built: $(DOCKER_FULL_IMAGE)"
+
+docker-rebuild: docker-clean-image docker-build ## Clean and rebuild image
+
+docker-recreate: docker-rm docker-run-dev ## Stop old container and start new one (keeps image)
+
+docker-refresh: docker-clean docker-rebuild docker-run-dev ## Full refresh: rebuild image and restart container
+
+# =============================================================================
+# Docker Run Targets
+# =============================================================================
+
+docker-run: ## Run container (detached)
+	$(call check_docker)
+	@echo "[FastAPI] Starting container: $(DOCKER_CONTAINER_NAME)"
+	@if docker ps -a --format '{{.Names}}' | grep -q "^$(DOCKER_CONTAINER_NAME)$$"; then \
+		echo "[FastAPI] Removing existing container: $(DOCKER_CONTAINER_NAME)"; \
+		docker stop $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+		docker rm $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+	fi
+	@docker run -d \
+		--name $(DOCKER_CONTAINER_NAME) \
+		-p $(HOST_PORT):$(DOCKER_PORT) \
+		--network $(DOCKER_NETWORK) \
+		$(DOCKER_FULL_IMAGE)
+	@echo "[FastAPI] ✓ Container started: $(DOCKER_CONTAINER_NAME)"
+	@echo "[FastAPI] Access at: http://localhost:$(HOST_PORT)"
+
+docker-start: docker-run ## Alias for docker-run
+
+docker-run-foreground: ## Run container in foreground (with logs)
+	$(call check_docker)
+	@echo "[FastAPI] Running container in foreground: $(DOCKER_CONTAINER_NAME)"
+	@if docker ps -a --format '{{.Names}}' | grep -q "^$(DOCKER_CONTAINER_NAME)$$"; then \
+		echo "[FastAPI] Removing existing container: $(DOCKER_CONTAINER_NAME)"; \
+		docker stop $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+		docker rm $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+	fi
+	docker run --rm \
+		--name $(DOCKER_CONTAINER_NAME) \
+		-p $(HOST_PORT):$(DOCKER_PORT) \
+		--network $(DOCKER_NETWORK) \
+		$(DOCKER_FULL_IMAGE)
+
+docker-run-it: ## Run container interactively with shell
+	$(call check_docker)
+	@echo "[FastAPI] Running container interactively"
+	@if docker ps -a --format '{{.Names}}' | grep -q "^$(DOCKER_CONTAINER_NAME)$$"; then \
+		echo "[FastAPI] Removing existing container: $(DOCKER_CONTAINER_NAME)"; \
+		docker stop $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+		docker rm $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+	fi
+	docker run -it --rm \
+		--name $(DOCKER_CONTAINER_NAME) \
+		-p $(HOST_PORT):$(DOCKER_PORT) \
+		--network $(DOCKER_NETWORK) \
+		$(DOCKER_FULL_IMAGE) /bin/sh
+
+docker-run-dev: ## Run container with volume mount for development
+	$(call check_docker)
+	@echo "[FastAPI] Running container with dev volume mounts"
+	@if docker ps -a --format '{{.Names}}' | grep -q "^$(DOCKER_CONTAINER_NAME)$$"; then \
+		echo "[FastAPI] Removing existing container: $(DOCKER_CONTAINER_NAME)"; \
+		docker stop $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+		docker rm $(DOCKER_CONTAINER_NAME) 2>/dev/null || true; \
+	fi
+	@docker run -d \
+		--name $(DOCKER_CONTAINER_NAME) \
+		-p $(HOST_PORT):$(DOCKER_PORT) \
+		-v $(PWD)/fastapi-apps:/app/fastapi-apps \
+		-v $(PWD)/common:/app/common:ro \
+		--network $(DOCKER_NETWORK) \
+		$(DOCKER_FULL_IMAGE)
+	@echo "[FastAPI] ✓ Dev container started: $(DOCKER_CONTAINER_NAME)"
+
+# =============================================================================
+# Docker Control Targets
+# =============================================================================
+
+docker-stop: ## Stop running container
+	@echo "[FastAPI] Stopping container: $(DOCKER_CONTAINER_NAME)"
+	@docker stop $(DOCKER_CONTAINER_NAME) 2>/dev/null || echo "Container not running"
+
+docker-restart: ## Restart container
+	@echo "[FastAPI] Restarting container: $(DOCKER_CONTAINER_NAME)"
+	@docker restart $(DOCKER_CONTAINER_NAME)
+
+docker-rm: docker-stop ## Remove container
+	@echo "[FastAPI] Removing container: $(DOCKER_CONTAINER_NAME)"
+	@docker rm $(DOCKER_CONTAINER_NAME) 2>/dev/null || echo "Container already removed"
+
+docker-kill: ## Force kill container
+	@echo "[FastAPI] Force killing container: $(DOCKER_CONTAINER_NAME)"
+	@docker kill $(DOCKER_CONTAINER_NAME) 2>/dev/null || echo "Container not running"
+
+docker-pause: ## Pause container
+	@docker pause $(DOCKER_CONTAINER_NAME)
+	@echo "[FastAPI] ✓ Container paused"
+
+docker-unpause: ## Unpause container
+	@docker unpause $(DOCKER_CONTAINER_NAME)
+	@echo "[FastAPI] ✓ Container unpaused"
+
+# =============================================================================
+# Docker Inspect & Monitor Targets
+# =============================================================================
+
+docker-ps: ## Show container status
+	@docker ps -a --filter name=$(DOCKER_CONTAINER_NAME)
+
+docker-status: docker-ps ## Alias for docker-ps
+
+docker-inspect: ## Inspect container
+	@docker inspect $(DOCKER_CONTAINER_NAME)
+
+docker-inspect-image: ## Inspect image
+	@docker inspect $(DOCKER_FULL_IMAGE)
+
+docker-health: ## Check container health
+	@docker inspect --format='{{.State.Health.Status}}' $(DOCKER_CONTAINER_NAME) 2>/dev/null || echo "No health check configured"
+
+docker-image-info: ## Show image information
+	@echo "[FastAPI] Image: $(DOCKER_FULL_IMAGE)"
+	@docker images $(DOCKER_IMAGE_NAME)
+
+docker-stats: ## Show container resource usage
+	@docker stats --no-stream $(DOCKER_CONTAINER_NAME)
+
+docker-stats-live: ## Show live container statistics
+	@docker stats $(DOCKER_CONTAINER_NAME)
+
+# =============================================================================
+# Docker Logs Targets
+# =============================================================================
+
+docker-logs: ## Show container logs
+	@docker logs $(DOCKER_CONTAINER_NAME)
+
+docker-logs-follow: ## Follow container logs
+	@docker logs -f $(DOCKER_CONTAINER_NAME)
+
+docker-logs-tail: ## Show last 100 lines of logs
+	@docker logs --tail 100 $(DOCKER_CONTAINER_NAME)
+
+docker-logs-since: ## Show logs since 5 minutes ago
+	@docker logs --since 5m $(DOCKER_CONTAINER_NAME)
+
+# =============================================================================
+# Docker Shell & Exec Targets
+# =============================================================================
+
+docker-shell: ## Open shell in running container
+	@echo "[FastAPI] Opening shell in $(DOCKER_CONTAINER_NAME)"
+	@docker exec -it $(DOCKER_CONTAINER_NAME) /bin/sh
+
+docker-exec: ## Execute command in container (usage: make docker-exec CMD="ls -la")
+	@if [ -z "$(CMD)" ]; then \
+		echo "Error: CMD parameter required. Usage: make docker-exec CMD=\"ls -la\""; \
+		exit 1; \
+	fi
+	@docker exec $(DOCKER_CONTAINER_NAME) $(CMD)
+
+# =============================================================================
+# Docker Registry Targets
+# =============================================================================
+
+docker-tag: ## Tag image for registry
+	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
+		echo "Error: DOCKER_REGISTRY not set"; \
+		exit 1; \
+	fi
+	@echo "[FastAPI] Tagging image: $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)"
+	@docker tag $(DOCKER_FULL_IMAGE) $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)
+
+docker-push: docker-tag ## Push image to registry
+	@echo "[FastAPI] Pushing image: $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)"
+	@docker push $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)
+
+docker-pull: ## Pull image from registry
+	@echo "[FastAPI] Pulling image: $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)"
+	@docker pull $(REGISTRY_IMAGE):$(DOCKER_IMAGE_TAG)
+
+docker-login: ## Login to Docker registry
+	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
+		echo "Error: DOCKER_REGISTRY not set"; \
+		exit 1; \
+	fi
+	@echo "[FastAPI] Logging into $(DOCKER_REGISTRY)"
+	@docker login $(DOCKER_REGISTRY)
+
+# =============================================================================
+# Docker Cleanup Targets
+# =============================================================================
+
+docker-clean-container: docker-rm ## Remove container
+
+docker-clean-image: ## Remove Docker image
+	@echo "[FastAPI] Removing image: $(DOCKER_FULL_IMAGE)"
+	@docker rmi $(DOCKER_FULL_IMAGE) 2>/dev/null || echo "Image not found"
+
+docker-clean: docker-clean-container docker-clean-image ## Remove container and image
+
+docker-prune: ## Prune unused Docker resources
+	@echo "[FastAPI] Pruning unused Docker resources..."
+	@docker system prune -f
+	@echo "[FastAPI] ✓ Prune complete"
+
+docker-prune-all: ## Prune all unused Docker resources (including volumes)
+	@echo "[FastAPI] Pruning all unused Docker resources..."
+	@docker system prune -af --volumes
+	@echo "[FastAPI] ✓ Prune complete"
+
+# =============================================================================
+# Docker Network Targets
+# =============================================================================
+
+docker-network-create: ## Create Docker network
+	@echo "[FastAPI] Creating network: $(DOCKER_NETWORK)"
+	@docker network create $(DOCKER_NETWORK) 2>/dev/null || echo "Network already exists"
+
+docker-network-rm: ## Remove Docker network
+	@echo "[FastAPI] Removing network: $(DOCKER_NETWORK)"
+	@docker network rm $(DOCKER_NETWORK) 2>/dev/null || echo "Network not found"
+
+docker-network-ls: ## List Docker networks
+	@docker network ls
+
+# =============================================================================
+# Docker CI Workflow Targets
+# =============================================================================
+
+docker-ci: docker-build docker-test ## CI workflow: build and test
+	@echo "[FastAPI] ✓ CI workflow complete"
+
+docker-test: ## Test Docker container
+	@echo "[FastAPI] Testing Docker container..."
+	@docker run --rm $(DOCKER_FULL_IMAGE) python --version
+	@docker run --rm $(DOCKER_FULL_IMAGE) /venv/bin/pip list
+	@echo "[FastAPI] ✓ Container test passed"
+
+docker-deploy: docker-build docker-push ## Deploy: build and push to registry
+	@echo "[FastAPI] ✓ Deploy complete"
+
+# =============================================================================
+# Help
+# =============================================================================
+
+help:
+	@echo "Makefile.fastapi - FastAPI Development"
+	@echo ""
+	@echo "Setup:"
+	@echo "  make -f Makefile.fastapi setup                 - Full monorepo setup (Fastify + FastAPI + Vite)"
+	@echo "  make -f Makefile.fastapi install               - Install FastAPI dependencies only"
+	@echo ""
+	@echo "CI Targets:"
+	@echo "  make -f Makefile.fastapi build                 - Build FastAPI apps and frontends"
+	@echo "  make -f Makefile.fastapi test                  - Run all tests"
+	@echo "  make -f Makefile.fastapi run                   - Start main orchestrator"
+	@echo "  make -f Makefile.fastapi clean                 - Clean virtual environments"
+	@echo ""
+	@echo "Development Commands:"
+	@echo "  make -f Makefile.fastapi dev                   - Run with hot-reload (port $(MAIN_PORT))"
+	@echo "  make -f Makefile.fastapi dev-app NAME=hello    - Run sub-app (port $(HELLO_PORT))"
+	@echo "  make -f Makefile.fastapi dev-all               - Run all apps simultaneously"
+	@echo "  make -f Makefile.fastapi test-app NAME=hello   - Run sub-app tests"
+	@echo "  make -f Makefile.fastapi test-integration      - Run integration tests"
+	@echo ""
+	@echo "Docker CI Targets:"
+	@echo "  make -f Makefile.fastapi docker-ci             - Run full CI workflow (build + test)"
+	@echo "  make -f Makefile.fastapi docker-build          - Build Docker image"
+	@echo "  make -f Makefile.fastapi docker-build-no-cache - Build without cache"
+	@echo "  make -f Makefile.fastapi docker-build-verbose  - Build with verbose output"
+	@echo "  make -f Makefile.fastapi docker-rebuild        - Clean and rebuild image"
+	@echo "  make -f Makefile.fastapi docker-recreate       - Restart container (keeps image)"
+	@echo "  make -f Makefile.fastapi docker-refresh        - Full refresh: rebuild + restart"
+	@echo "  make -f Makefile.fastapi docker-test           - Test Docker container"
+	@echo "  make -f Makefile.fastapi docker-deploy         - Build and push to registry"
+	@echo ""
+	@echo "Docker Run Targets:"
+	@echo "  make -f Makefile.fastapi docker-run            - Run container (detached)"
+	@echo "  make -f Makefile.fastapi docker-run-foreground - Run in foreground (with logs)"
+	@echo "  make -f Makefile.fastapi docker-run-it         - Run interactively with shell"
+	@echo "  make -f Makefile.fastapi docker-run-dev        - Run with volume mounts (dev mode)"
+	@echo ""
+	@echo "Docker Control Targets:"
+	@echo "  make -f Makefile.fastapi docker-stop           - Stop running container"
+	@echo "  make -f Makefile.fastapi docker-restart        - Restart container"
+	@echo "  make -f Makefile.fastapi docker-rm             - Remove container"
+	@echo "  make -f Makefile.fastapi docker-kill           - Force kill container"
+	@echo ""
+	@echo "Docker Monitoring Targets:"
+	@echo "  make -f Makefile.fastapi docker-ps             - Show container status"
+	@echo "  make -f Makefile.fastapi docker-logs           - Show container logs"
+	@echo "  make -f Makefile.fastapi docker-logs-follow    - Follow container logs"
+	@echo "  make -f Makefile.fastapi docker-shell          - Open shell in container"
+	@echo "  make -f Makefile.fastapi docker-stats          - Show resource usage"
+	@echo ""
+	@echo "Docker Cleanup Targets:"
+	@echo "  make -f Makefile.fastapi docker-clean          - Remove container and image"
+	@echo "  make -f Makefile.fastapi docker-prune          - Prune unused resources"
+	@echo ""
+	@echo "Docker Registry Targets:"
+	@echo "  make -f Makefile.fastapi docker-push           - Push image to registry"
+	@echo "  make -f Makefile.fastapi docker-pull           - Pull image from registry"
+	@echo ""
+	@echo "Configuration Variables:"
+	@echo "  DOCKER_IMAGE_NAME      = $(DOCKER_IMAGE_NAME)"
+	@echo "  DOCKER_IMAGE_TAG       = $(DOCKER_IMAGE_TAG)"
+	@echo "  DOCKER_CONTAINER_NAME  = $(DOCKER_CONTAINER_NAME)"
+	@echo "  DOCKERFILE             = $(DOCKERFILE)"
+	@echo "  DOCKER_PORT            = $(DOCKER_PORT)"
+	@echo "  HOST_PORT              = $(HOST_PORT)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.fastapi docker-build"
+	@echo "  make -f Makefile.fastapi docker-run"
+	@echo "  make -f Makefile.fastapi docker-logs-follow"
+	@echo "  make -f Makefile.fastapi docker-shell"
+	@echo "  make -f Makefile.fastapi DOCKER_IMAGE_TAG=v1.0.0 docker-build"
+	@echo "  make -f Makefile.fastapi DOCKER_REGISTRY=registry.example.com docker-push"
+	@echo ""
+	@echo "First time setup: make -f Makefile.fastapi install"

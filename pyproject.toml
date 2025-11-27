@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "app-v500"
+version = "0.1.0"
+description = "Multi-tenant/Multi-app FastAPI orchestrator"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+# persona-editor dependencies
+pydantic-settings = "^2.0.0"
+sqlalchemy = "2.0.22"
+asyncpg = "^0.29.0"
+alembic = "^1.12.0"
+psycopg2-binary = "^2.9.9"
+greenlet = "^3.0.0"
+redis = {extras = ["hiredis"], version = "^5.0.0"}
+nanoid = "^2.0.0"
+python-dotenv = "^1.0.0"
+python-multipart = "^0.0.6"
+httpx = "^0.28.1"
+urllib3 = "^2.5.0"
+watchfiles = "^1.1.1"
+requests = "^2.32.5"
+
+# aws-s3-files dependencies
+boto3 = "^1.34.0"
+aioboto3 = "^12.3.0"
+botocore = "^1.34.0"
+slowapi = "^0.1.9"
+
+# Local packages (installed in editable mode)
+static_server = {path = "packages-py/static_server", develop = true}
+auto_register_routes = {path = "packages-py/auto_register_routes", develop = true}
+figma_api = {path = "packages-py/figma_api", develop = true}
+jira_api = {path = "packages-py/jira_api", develop = true}
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+httpx = "^0.28.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"

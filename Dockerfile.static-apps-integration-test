@@ -1,0 +1,145 @@
+# ==============================================================================
+# Dockerfile.static-apps-integration-test
+# ==============================================================================
+# Purpose: Integration test container for static artifact verification
+#
+# This lightweight nginx container serves static files that were extracted
+# from the artifact image via docker cp. Used by Makefile.static-apps test-integration.
+#
+# The Makefile extracts files from mta-v500-static:latest to tmp-static-extract/
+# before building this image, avoiding FROM scratch platform compatibility issues.
+#
+# Build:
+#   # First extract files (done by Makefile)
+#   docker create --name temp mta-v500-static:latest
+#   docker cp temp:/static tmp-static-extract/
+#   docker rm temp
+#
+#   # Then build test container
+#   docker build \
+#     -t mta-v500-static-test:latest \
+#     -f Dockerfile.static-apps-integration-test \
+#     .
+#
+# Run:
+#   docker run -d -p 8888:8080 mta-v500-static-test:latest
+#
+# Test:
+#   curl http://localhost:8888/static/app/persona_editor/frontend/dist/index.html
+# ==============================================================================
+
+FROM nginx:alpine
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy static files from extracted directory in build context
+# The Makefile extracts these from the artifact using docker cp
+# Directory structure: tmp-static-extract/static/app/{app_name}/frontend/dist/
+COPY tmp-static-extract/static /usr/share/nginx/html/static
+
+# Create nginx configuration for serving static files
+RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
+server {
+    listen 8080;
+    server_name localhost;
+    root /usr/share/nginx/html;
+
+    # Access and error logs
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/javascript application/javascript application/json application/xml text/xml;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Serve static files
+    location /static/ {
+        # Enable directory listing
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+        autoindex_format html;
+
+        # Try file, then directory, then 404
+        try_files $uri $uri/ =404;
+
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # No cache for HTML files
+        location ~* \.html$ {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+    }
+
+    # Serve frontend apps with SPA routing
+    # Example: /apps/persona-editor routes to /static/app/persona_editor/frontend/dist/
+    location ~ ^/apps/([^/]+)(/.*)?$ {
+        set $app_name $1;
+        set $app_path $2;
+
+        # Try to serve the requested file, fallback to index.html for SPA routing
+        alias /usr/share/nginx/html/static/app/$app_name/frontend/dist;
+        try_files $app_path $app_path/ /static/app/$app_name/frontend/dist/index.html;
+
+        # No cache for index.html
+        location ~ index\.html$ {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+        }
+    }
+
+    # Root path
+    location = / {
+        return 200 "Static artifact test server running\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+
+# Create non-root user for security
+# Use nginx user that already exists in nginx:alpine (uid=101, gid=101)
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
+
+# Switch to non-root user
+USER nginx
+
+# Expose port 8080 (non-root compatible)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

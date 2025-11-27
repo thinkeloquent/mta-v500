@@ -1,0 +1,90 @@
+{
+  "name": "@internal/skeleton",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-mjs/skeleton/src",
+  "projectType": "application",
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "tsc",
+        "cwd": "packages-mjs/skeleton"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "build:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --watch",
+        "cwd": "packages-mjs/skeleton"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/self-launch-server.ts",
+        "cwd": "packages-mjs/skeleton"
+      },
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "dev:watch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx watch src/self-launch-server.ts",
+        "cwd": "packages-mjs/skeleton"
+      },
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": [
+        "{projectRoot}/coverage"
+      ],
+      "options": {
+        "config": "packages-mjs/skeleton/vitest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "rm -rf dist",
+        "cwd": "packages-mjs/skeleton"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "packages-mjs/skeleton"
+      }
+    }
+  },
+  "tags": [
+    "type:app",
+    "scope:server",
+    "level:2"
+  ],
+  "implicitDependencies": [
+    "@internal/core-exceptions",
+    "@internal/core-no-cache",
+    "@internal/core-plugin-logger",
+    "@internal/core-prisma-utils",
+    "@internal/core-route-logger",
+    "@internal/core-spa-app",
+    "@internal/core-static-app"
+  ]
+}

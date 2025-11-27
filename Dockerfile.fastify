@@ -1,0 +1,83 @@
+# Dockerfile.fastify - Node.js/Fastify applications
+# Multi-stage build for Node.js apps that serve frontends
+
+# Stage 1: Builder
+FROM node:22-slim AS builder
+
+# Install pnpm and build tools globally
+RUN npm install -g pnpm@latest
+RUN npm install -g typescript@latest
+RUN npm install -g rollup@latest
+RUN npm install -g tsup@latest
+
+WORKDIR /applications
+
+# Copy package files and workspace config
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig*.json ./
+
+# Copy common configs & schemas
+COPY common/ ./common/
+
+# Copy JavaScript packages
+COPY packages-mjs/ ./packages-mjs/
+
+# Copy Fastify apps
+COPY fastify-apps/ ./fastify-apps/
+
+# Copy FastAPI apps (for frontend builds)
+COPY fastapi-apps/ ./fastapi-apps/
+
+# Copy utility scripts
+COPY .bin/ ./.bin/
+COPY scripts/ ./scripts/
+
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
+
+# Generate types from common schemas
+RUN chmod +x ./common/scripts/generate-types.sh && \
+    ./common/scripts/generate-types.sh || true
+
+# Tier 3: Packages that depend on tier 1 & 2
+RUN mkdir -p /static/app
+RUN npm run build
+
+# Build all fastify-apps frontends using pnpm workspaces
+# RUN pnpm --filter "./fastify-apps/*/frontend" run build
+
+# Copy built frontends to static directory (with error handling)
+# Scans both fastify-apps and fastapi-apps for frontend/dist folders
+RUN node .bin/copy-frontend-dist.mjs /applications /static/app
+
+# Stage 2: Runtime
+FROM node:22-slim AS runtime
+
+WORKDIR /applications
+
+# ARG for environment secrets file path
+ARG ENV_SECRET_FILE="/etc/secrets/MTA_DEV"
+
+ARG BUILD_ID="v.0.0.1"
+
+ENV BUILD_ID=${BUILD_ID}
+ENV ENV_SECRET_FILE=${ENV_SECRET_FILE}
+
+# Copy built artifacts from builder
+COPY --from=builder /static ./static
+COPY --from=builder /applications/fastify-apps ./fastify-apps
+COPY --from=builder /applications/common ./common
+COPY --from=builder /applications/packages-mjs ./packages-mjs
+COPY --from=builder /applications/node_modules ./node_modules
+COPY --from=builder /applications/package.json ./package.json
+COPY --from=builder /applications/tsconfig.json ./tsconfig.json
+
+# Expose default port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start server
+# Note: This will fail if no fastify apps exist - that's expected
+CMD ["node", "fastify-apps/main/server.mjs"]

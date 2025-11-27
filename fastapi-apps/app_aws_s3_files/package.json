@@ -1,0 +1,31 @@
+{
+  "name": "aws-s3-admin-api-python",
+  "version": "1.0.0",
+  "description": "FastAPI backend for AWS S3 Resource Admin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:py": "pip install -r requirements.txt",
+    "install:dev": "pip install -r requirements-dev.txt",
+    "dev": "uvicorn main:app --host 0.0.0.0 --port 3001 --reload",
+    "start": "uvicorn main:app --host 0.0.0.0 --port 3001",
+    "test": "pytest",
+    "test:cov": "pytest --cov=. --cov-report=html",
+    "lint": "ruff check .",
+    "lint:fix": "ruff check --fix .",
+    "format": "black .",
+    "format:check": "black --check .",
+    "type-check": "mypy .",
+    "check": "npm run format:check && npm run lint && npm run type-check"
+  },
+  "keywords": [
+    "fastapi",
+    "aws",
+    "s3",
+    "python"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11"
+  }
+}

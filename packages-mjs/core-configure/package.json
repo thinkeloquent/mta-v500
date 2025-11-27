@@ -1,0 +1,62 @@
+{
+  "name": "@internal/core-configure",
+  "version": "2.0.4",
+  "description": "Entity configuration management with deep merging, validation, and entity definitions",
+  "license": "MIT",
+  "author": "ThinkEloquent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosmarte/mta-multi-tenant-application.git",
+    "directory": "external/core-configure"
+  },
+  "homepage": "https://github.com/carlosmarte/mta-multi-tenant-application#readme",
+  "bugs": {
+    "url": "https://github.com/carlosmarte/mta-multi-tenant-application/issues"
+  },
+  "keywords": [
+    "configuration",
+    "entity",
+    "merge",
+    "validation",
+    "multi-tenant"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@internal/core-exceptions": "workspace:*",
+    "deepmerge": "^4.3.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.5.2",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

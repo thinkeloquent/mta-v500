@@ -1,0 +1,612 @@
+# ==============================================================================
+# Makefile.static-apps - Static Frontend Artifact Management
+# ==============================================================================
+# Purpose: Build, verify, test, and manage the FROM scratch static artifact
+#          containing all frontend dist files for deployment
+#
+# Quick Start:
+#   make -f Makefile.static-apps help        # Show all targets
+#   make -f Makefile.static-apps ci          # Full CI workflow
+#   make -f Makefile.static-apps build       # Just build artifact
+# List all frontends
+#make -f Makefile.vite list-frontends
+
+# Start Fastify development
+#make -f Makefile.fastify dev
+
+# Start specific frontend
+#make -f Makefile.vite dev-frontend NAME=figma-component-inspector
+# Common Workflows:
+#   Local Development:
+#     make -f Makefile.static-apps install build-local
+#
+#   CI/CD Pipeline:
+#     make -f Makefile.static-apps ci
+#     make -f Makefile.static-apps ci-release DOCKER_REGISTRY=ghcr.io
+#
+#   Clean Build:
+#     make -f Makefile.static-apps clean-all rebuild
+# ==============================================================================
+
+.PHONY: help
+.DEFAULT_GOAL := help
+
+# ------------------------------------------------------------------------------
+# Terminal Colors
+# ------------------------------------------------------------------------------
+
+RED     := \033[0;31m
+GREEN   := \033[0;32m
+YELLOW  := \033[0;33m
+CYAN    := \033[0;36m
+BLUE    := \033[0;34m
+PURPLE  := \033[0;35m
+WHITE   := \033[0;37m
+RESET   := \033[0m
+
+# ------------------------------------------------------------------------------
+# Project Configuration
+# ------------------------------------------------------------------------------
+
+PROJECT_NAME ?= mta-v500
+VERSION ?= latest
+ARTIFACT_NAME ?= $(PROJECT_NAME)-static
+IMAGE_NAME ?= $(ARTIFACT_NAME)
+IMAGE_ID ?= $(shell docker images -q $(IMAGE_NAME):$(VERSION) 2>/dev/null)
+DOCKERFILE ?= Dockerfile.static-apps
+TEST_DOCKERFILE ?= Dockerfile.static-apps-integration-test
+
+# Docker Registry Configuration
+DOCKER_REGISTRY ?=
+DOCKER_USERNAME ?=
+REGISTRY_IMAGE = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(if $(DOCKER_USERNAME),$(DOCKER_USERNAME)/,)$(IMAGE_NAME)
+
+# Build Configuration
+VITE_BACKEND_API_DOMAIN ?=
+BUILD_ARGS ?=
+DOCKER_BUILD_OPTS ?=
+# Auto-detect platform: linux/arm64 for Apple Silicon, linux/amd64 for Intel
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),arm64)
+    DOCKER_PLATFORM ?= linux/arm64
+else ifeq ($(ARCH),aarch64)
+    DOCKER_PLATFORM ?= linux/arm64
+else
+    DOCKER_PLATFORM ?= linux/amd64
+endif
+
+# Directory Configuration
+EXTRACT_DIR ?= ./extracted-static
+TMP_VERIFY_DIR ?= ./tmp-verify
+TMP_TEST_EXTRACT_DIR ?= ./tmp-static-extract
+BUILD_SCRIPT ?= .bin/dist-copy-frontend-folders.sh
+
+# Test Configuration
+TEST_PORT ?= 8888
+TEST_CONTAINER_NAME ?= $(ARTIFACT_NAME)-test
+TEST_IMAGE_NAME ?= $(ARTIFACT_NAME)-test
+
+# Expected artifact specifications
+EXPECTED_SIZE_MIN_MB ?= 3
+EXPECTED_SIZE_MAX_MB ?= 10
+# Dynamically discover apps from workspace pattern (app/*/frontend)
+EXPECTED_APPS ?= $(shell find app/*/frontend -maxdepth 0 -type d 2>/dev/null | sed 's|app/\(.*\)/frontend|\1|' | sort | tr '\n' ' ')
+
+# ------------------------------------------------------------------------------
+# Help System
+# ------------------------------------------------------------------------------
+
+help: ## Show this help message with all available targets
+	@echo ""
+	@echo "$(CYAN)╔════════════════════════════════════════════════════════════════╗$(RESET)"
+	@echo "$(CYAN)║         Static Frontend Artifact Management                   ║$(RESET)"
+	@echo "$(CYAN)╚════════════════════════════════════════════════════════════════╝$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Build Automation:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^build|^rebuild)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Local Frontend Build (npm):$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^install|^build-local|^clean-node)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Verification & Testing:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^verify|^test|^extract)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Registry Operations:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^tag|^push|^pull|^login|^logout)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Docker Clean Operations:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^clean|^prune)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)CI/CD Workflows:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '^ci' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(GREEN)Utility Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		grep -E '(^info|^metadata|^size|^list|^config|^version|^help)' | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(PURPLE)Current Configuration:$(RESET)"
+	@echo "  PROJECT_NAME         = $(PROJECT_NAME)"
+	@echo "  IMAGE_NAME           = $(IMAGE_NAME)"
+	@echo "  VERSION              = $(VERSION)"
+	@echo "  DOCKERFILE           = $(DOCKERFILE)"
+	@echo "  REGISTRY_IMAGE       = $(REGISTRY_IMAGE)"
+	@echo "  VITE_BACKEND_DOMAIN  = $(if $(VITE_BACKEND_API_DOMAIN),$(VITE_BACKEND_API_DOMAIN),(not set))"
+	@echo "  TEST_PORT            = $(TEST_PORT)"
+	@echo ""
+	@echo "$(CYAN)Examples:$(RESET)"
+	@echo "  $(WHITE)make -f Makefile.static-apps ci$(RESET)"
+	@echo "  $(WHITE)make -f Makefile.static-apps build VITE_BACKEND_API_DOMAIN=https://api.example.com$(RESET)"
+	@echo "  $(WHITE)make -f Makefile.static-apps ci-release DOCKER_REGISTRY=ghcr.io DOCKER_USERNAME=myorg$(RESET)"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Build Automation (delegates to Makefile.docker)
+# ------------------------------------------------------------------------------
+
+build: ## Build static artifact image
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(CYAN)Building Static Artifact$(RESET)"
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@$(MAKE) -f Makefile.docker build \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
+
+build-no-cache: ## Build artifact without using Docker cache
+	@$(MAKE) -f Makefile.docker build-no-cache \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
+
+build-verbose: ## Build artifact with verbose output and progress
+	@$(MAKE) -f Makefile.docker build-verbose \
+		DOCKERFILE=$(DOCKERFILE) \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		TARGET=static-artifact \
+		BUILD_ARGS="$(if $(VITE_BACKEND_API_DOMAIN),--build-arg VITE_BACKEND_API_DOMAIN=$(VITE_BACKEND_API_DOMAIN),)"
+
+rebuild: clean-image build ## Clean and rebuild artifact
+
+rebuild-all: clean-all build ## Nuclear rebuild - clean everything and rebuild
+	@echo "$(GREEN)✓ Complete rebuild finished$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Local Frontend Build (npm)
+# ------------------------------------------------------------------------------
+
+install: ## Install npm dependencies for all frontend apps
+	@echo "$(CYAN)Installing frontend dependencies...$(RESET)"
+	@if [ -f "package.json" ]; then \
+		npm install; \
+		echo "$(GREEN)✓ Frontend dependencies installed$(RESET)"; \
+	else \
+		echo "$(RED)✗ package.json not found$(RESET)"; \
+		exit 1; \
+	fi
+
+build-local: ## Build frontends locally using npm (no Docker)
+	@echo "$(CYAN)Building frontends locally...$(RESET)"
+	@if [ -f "$(BUILD_SCRIPT)" ]; then \
+		bash $(BUILD_SCRIPT); \
+		echo "$(GREEN)✓ Local build complete$(RESET)"; \
+	else \
+		echo "$(RED)✗ Build script not found: $(BUILD_SCRIPT)$(RESET)"; \
+		exit 1; \
+	fi
+
+build-local-skip: ## Copy dist folders without rebuilding (--skip-build)
+	@echo "$(CYAN)Copying dist folders (skip build)...$(RESET)"
+	@if [ -f "$(BUILD_SCRIPT)" ]; then \
+		bash $(BUILD_SCRIPT) --skip-build; \
+		echo "$(GREEN)✓ Copy complete$(RESET)"; \
+	else \
+		echo "$(RED)✗ Build script not found: $(BUILD_SCRIPT)$(RESET)"; \
+		exit 1; \
+	fi
+
+clean-node-modules: ## Remove all node_modules directories
+	@echo "$(YELLOW)Removing all node_modules...$(RESET)"
+	@find . -name "node_modules" -type d -prune -exec rm -rf {} + 2>/dev/null || true
+	@echo "$(GREEN)✓ node_modules removed$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Verification & Testing
+# ------------------------------------------------------------------------------
+
+verify: verify-structure verify-content verify-size ## Run all verification checks
+	@echo ""
+	@echo "$(GREEN)✓✓✓ All verification checks passed$(RESET)"
+
+verify-structure: ## Verify artifact directory structure
+	@echo "$(CYAN)Verifying artifact structure...$(RESET)"
+	@docker create --name $(ARTIFACT_NAME)-verify-tmp $(IMAGE_NAME):$(VERSION) /bin/sh 2>/dev/null || \
+		(echo "$(RED)✗ Failed to create container. Does image exist?$(RESET)" && \
+		 echo "$(YELLOW)  Run: make -f Makefile.static-apps build$(RESET)" && exit 1)
+	@docker cp $(ARTIFACT_NAME)-verify-tmp:/static $(TMP_VERIFY_DIR) 2>/dev/null || \
+		(docker rm $(ARTIFACT_NAME)-verify-tmp 2>/dev/null; \
+		 echo "$(RED)✗ Failed to extract /static directory$(RESET)" && exit 1)
+	@docker rm $(ARTIFACT_NAME)-verify-tmp 2>/dev/null || true
+	@if [ ! -d "$(TMP_VERIFY_DIR)/app" ]; then \
+		echo "$(RED)✗ Missing /app directory$(RESET)"; \
+		rm -rf $(TMP_VERIFY_DIR); \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ Directory structure valid$(RESET)"
+	@rm -rf $(TMP_VERIFY_DIR)
+
+verify-content: ## Verify critical files exist in artifact
+	@echo "$(CYAN)Verifying artifact content...$(RESET)"
+	@docker create --name $(ARTIFACT_NAME)-verify-tmp $(IMAGE_NAME):$(VERSION) /bin/sh 2>/dev/null || exit 1
+	@docker cp $(ARTIFACT_NAME)-verify-tmp:/static $(TMP_VERIFY_DIR) 2>/dev/null || exit 1
+	@docker rm $(ARTIFACT_NAME)-verify-tmp 2>/dev/null || true
+	@echo "$(BLUE)Checking for frontend apps:$(RESET)"
+	@MISSING=0; \
+	for app in $(EXPECTED_APPS); do \
+		if [ -f "$(TMP_VERIFY_DIR)/app/$$app/frontend/dist/index.html" ]; then \
+			echo "  $(GREEN)✓$(RESET) $$app"; \
+		else \
+			echo "  $(RED)✗$(RESET) $$app (missing or no index.html)"; \
+			MISSING=$$((MISSING + 1)); \
+		fi; \
+	done; \
+	rm -rf $(TMP_VERIFY_DIR); \
+	if [ $$MISSING -gt 0 ]; then \
+		echo "$(RED)✗ $$MISSING frontend app(s) missing or incomplete$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ All expected files present$(RESET)"
+
+verify-size: ## Verify artifact size is within expected range
+	@echo "$(CYAN)Verifying artifact size...$(RESET)"
+	@SIZE_BYTES=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format='{{.Size}}' 2>/dev/null); \
+	if [ -z "$$SIZE_BYTES" ]; then \
+		echo "$(RED)✗ Image not found$(RESET)"; \
+		exit 1; \
+	fi; \
+	SIZE_MB=$$((SIZE_BYTES / 1024 / 1024)); \
+	echo "  Artifact size: $${SIZE_MB}MB"; \
+	if [ $$SIZE_MB -lt $(EXPECTED_SIZE_MIN_MB) ]; then \
+		echo "$(YELLOW)⚠ Warning: Size ($$SIZE_MB MB) is smaller than expected ($(EXPECTED_SIZE_MIN_MB)MB)$(RESET)"; \
+		echo "$(YELLOW)  This might indicate missing files$(RESET)"; \
+	elif [ $$SIZE_MB -gt $(EXPECTED_SIZE_MAX_MB) ]; then \
+		echo "$(YELLOW)⚠ Warning: Size ($$SIZE_MB MB) is larger than expected ($(EXPECTED_SIZE_MAX_MB)MB)$(RESET)"; \
+		echo "$(YELLOW)  This might indicate unnecessary files in the build$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ Size within expected range ($(EXPECTED_SIZE_MIN_MB)-$(EXPECTED_SIZE_MAX_MB)MB)$(RESET)"; \
+	fi
+
+test-integration: ## Run full integration test with nginx container (builds artifact if needed)
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(CYAN)Running Integration Test$(RESET)"
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(BLUE)Checking for static artifact image...$(RESET)"
+	@if ! docker image inspect $(IMAGE_NAME):$(VERSION) > /dev/null 2>&1; then \
+		echo "$(RED)✗ Static artifact image not found: $(IMAGE_NAME):$(VERSION)$(RESET)"; \
+		echo "$(YELLOW)  Building artifact first...$(RESET)"; \
+		echo ""; \
+		$(MAKE) -f Makefile.static-apps build; \
+		if [ $$? -ne 0 ]; then \
+			echo "$(RED)✗ Failed to build static artifact$(RESET)"; \
+			exit 1; \
+		fi; \
+		echo ""; \
+	else \
+		echo "$(GREEN)✓ Static artifact image found$(RESET)"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Step 1: Extracting static files from artifact...$(RESET)"
+	@rm -rf $(TMP_TEST_EXTRACT_DIR)
+	@mkdir -p $(TMP_TEST_EXTRACT_DIR)
+	@docker create --name $(ARTIFACT_NAME)-test-extract $(IMAGE_NAME):$(VERSION) /bin/sh > /dev/null 2>&1
+	@docker cp $(ARTIFACT_NAME)-test-extract:/static $(TMP_TEST_EXTRACT_DIR)/
+	@docker rm $(ARTIFACT_NAME)-test-extract > /dev/null 2>&1
+	@FILE_COUNT=$$(find $(TMP_TEST_EXTRACT_DIR) -type f | wc -l | xargs); \
+	echo "$(GREEN)✓ Extracted $$FILE_COUNT files$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 2: Building test container (using extracted files)...$(RESET)"
+	@docker build \
+		--platform $(DOCKER_PLATFORM) \
+		-t $(TEST_IMAGE_NAME):latest \
+		-f $(TEST_DOCKERFILE) \
+		. 2>&1 | sed 's/^/  /'
+	@echo "$(GREEN)✓ Test container built$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 3: Starting test server (port $(TEST_PORT))...$(RESET)"
+	@docker rm -f $(TEST_CONTAINER_NAME) 2>/dev/null || true
+	@docker run -d \
+		--name $(TEST_CONTAINER_NAME) \
+		--platform $(DOCKER_PLATFORM) \
+		-p $(TEST_PORT):8080 \
+		$(TEST_IMAGE_NAME):latest
+	@echo "$(GREEN)✓ Test server started$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Step 4: Waiting for server to be ready...$(RESET)"
+	@sleep 3
+
+extract: ## Extract static files from artifact to local directory
+	@echo "$(CYAN)Extracting static files...$(RESET)"
+	@docker create --name $(ARTIFACT_NAME)-extract-tmp $(IMAGE_NAME):$(VERSION) /bin/sh 2>/dev/null || \
+		(echo "$(RED)✗ Failed to create container$(RESET)" && exit 1)
+	@rm -rf $(EXTRACT_DIR)
+	@docker cp $(ARTIFACT_NAME)-extract-tmp:/static $(EXTRACT_DIR)
+	@docker rm $(ARTIFACT_NAME)-extract-tmp 2>/dev/null
+	@echo "$(GREEN)✓ Files extracted to: $(EXTRACT_DIR)$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Contents:$(RESET)"
+	@find $(EXTRACT_DIR) -name "index.html" | sed 's/^/  /'
+
+# ------------------------------------------------------------------------------
+# Registry Operations (delegates to Makefile.docker)
+# ------------------------------------------------------------------------------
+
+tag: ## Tag image for registry push
+	@$(MAKE) -f Makefile.docker tag \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
+
+push: ## Push artifact image to registry
+	@$(MAKE) -f Makefile.docker push \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
+
+pull: ## Pull artifact image from registry
+	@$(MAKE) -f Makefile.docker pull \
+		IMAGE_NAME=$(IMAGE_NAME) \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
+
+login: ## Login to Docker registry
+	@$(MAKE) -f Makefile.docker login \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+		DOCKER_USERNAME=$(DOCKER_USERNAME)
+
+logout: ## Logout from Docker registry
+	@$(MAKE) -f Makefile.docker logout \
+		DOCKER_REGISTRY=$(DOCKER_REGISTRY)
+
+# ------------------------------------------------------------------------------
+# Docker Clean Operations
+# ------------------------------------------------------------------------------
+
+clean: ## Remove artifact containers (temp containers for verify/extract)
+	@echo "$(YELLOW)Cleaning static-apps containers...$(RESET)"
+	@docker rm -f $(ARTIFACT_NAME)-verify-tmp 2>/dev/null || true
+	@docker rm -f $(ARTIFACT_NAME)-extract-tmp 2>/dev/null || true
+	@docker rm -f $(ARTIFACT_NAME)-test-extract 2>/dev/null || true
+	@docker rm -f $(TEST_CONTAINER_NAME) 2>/dev/null || true
+	@echo "$(GREEN)✓ Containers removed$(RESET)"
+
+clean-image: ## Remove artifact images
+	@$(MAKE) -f Makefile.docker clean-image IMAGE_NAME=$(IMAGE_NAME)
+	@docker rmi -f $(TEST_IMAGE_NAME):latest 2>/dev/null || true
+	@echo "$(GREEN)✓ Images removed$(RESET)"
+
+clean-extracted: ## Clean extracted files
+	@echo "$(YELLOW)Removing extracted files...$(RESET)"
+	@rm -rf $(EXTRACT_DIR)
+	@rm -rf $(TMP_VERIFY_DIR)
+	@rm -rf $(TMP_TEST_EXTRACT_DIR)
+	@echo "$(GREEN)✓ Extracted files removed$(RESET)"
+
+clean-all: clean clean-image clean-extracted clean-node-modules ## Full cleanup (images, containers, extracted files, node_modules)
+	@echo "$(GREEN)✓✓✓ Full cleanup complete$(RESET)"
+
+prune: ## Prune Docker system (delegates to Makefile.docker)
+	@$(MAKE) -f Makefile.docker prune FORCE=$(FORCE)
+
+# ------------------------------------------------------------------------------
+# CI/CD Workflows
+# ------------------------------------------------------------------------------
+
+ci: install build verify test-integration ## Full CI workflow: install -> build -> verify -> test
+	@echo ""
+	@echo "$(GREEN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(GREEN)✓✓✓ CI WORKFLOW COMPLETED SUCCESSFULLY$(RESET)"
+	@echo "$(GREEN)════════════════════════════════════════════════════════════════$(RESET)"
+
+ci-build: build ## CI: Build step only
+	@echo "$(GREEN)✓ CI build complete$(RESET)"
+
+ci-verify: verify ## CI: Verification step only
+	@echo "$(GREEN)✓ CI verification complete$(RESET)"
+
+ci-test: test-integration ## CI: Integration test step only
+	@echo "$(GREEN)✓ CI test complete$(RESET)"
+
+ci-push: push ## CI: Push to registry
+	@echo "$(GREEN)✓ CI push complete$(RESET)"
+
+ci-release: ci push ## CI: Full release workflow (ci + push)
+	@echo ""
+	@echo "$(GREEN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(GREEN)✓✓✓ CI RELEASE COMPLETED SUCCESSFULLY$(RESET)"
+	@echo "$(GREEN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Artifact available at:$(RESET)"
+	@echo "  $(REGISTRY_IMAGE):$(VERSION)"
+	@echo "  $(REGISTRY_IMAGE):latest"
+
+ci-fast: install build verify ## Fast CI: skip integration test
+	@echo "$(GREEN)✓ Fast CI complete$(RESET)"
+
+ci-cleanup: ## CI: Cleanup test containers, images, and temporary files
+	@echo "$(BLUE)Running CI cleanup...$(RESET)"
+	@docker stop $(TEST_CONTAINER_NAME) > /dev/null 2>&1 || true
+	@docker rm $(TEST_CONTAINER_NAME) > /dev/null 2>&1 || true
+	@docker rmi $(TEST_IMAGE_NAME):latest > /dev/null 2>&1 || true
+	@rm -rf $(TMP_TEST_EXTRACT_DIR)
+	@echo "$(GREEN)✓ Cleanup complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Utility Commands
+# ------------------------------------------------------------------------------
+
+info: ## Show artifact image information
+	@echo ""
+	@echo "$(CYAN)Artifact Information$(RESET)"
+	@echo "$(CYAN)────────────────────────────────────────────────────────────────$(RESET)"
+	@if docker image inspect $(IMAGE_NAME):$(VERSION) > /dev/null 2>&1; then \
+		SIZE_BYTES=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Size}}'); \
+		SIZE_MB=$$((SIZE_BYTES / 1024 / 1024)); \
+		REPO_TAGS=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.RepoTags}}'); \
+		CREATED=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Created}}'); \
+		ARCH=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Architecture}}'); \
+		OS=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Os}}'); \
+		echo "  Image: $$REPO_TAGS"; \
+		echo "  Size: $$SIZE_BYTES bytes ($${SIZE_MB}MB)"; \
+		echo "  Created: $$CREATED"; \
+		echo "  Architecture: $$ARCH"; \
+		echo "  OS: $$OS"; \
+		echo "$(CYAN)────────────────────────────────────────────────────────────────$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠ Image not found: $(IMAGE_NAME):$(VERSION)$(RESET)"; \
+		echo "$(YELLOW)  Run: make -f Makefile.static-apps build$(RESET)"; \
+	fi
+	@echo ""
+
+metadata: ## Show detailed image metadata (ID, SHA, digest, labels, env)
+	@echo ""
+	@echo "$(CYAN)Image Metadata$(RESET)"
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@if docker image inspect $(IMAGE_NAME):$(VERSION) > /dev/null 2>&1; then \
+		echo "$(BLUE)Identity:$(RESET)"; \
+		IMAGE_ID=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Id}}'); \
+		SHORT_ID=$$(echo $$IMAGE_ID | cut -c8-19); \
+		REPO_DIGESTS=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.RepoDigests}}'); \
+		REPO_TAGS=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.RepoTags}}'); \
+		echo "  Image ID (Full):  $$IMAGE_ID"; \
+		echo "  Image ID (Short): $$SHORT_ID"; \
+		echo "  Repository Tags:  $$REPO_TAGS"; \
+		echo "  Repo Digests:     $$REPO_DIGESTS"; \
+		echo ""; \
+		echo "$(BLUE)Metadata:$(RESET)"; \
+		CREATED=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Created}}'); \
+		AUTHOR=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Author}}'); \
+		ARCH=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Architecture}}'); \
+		OS=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Os}}'); \
+		VARIANT=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Variant}}'); \
+		SIZE_BYTES=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Size}}'); \
+		SIZE_MB=$$((SIZE_BYTES / 1024 / 1024)); \
+		VIRTUAL_SIZE=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.VirtualSize}}'); \
+		PARENT=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Parent}}'); \
+		DOCKER_VERSION=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.DockerVersion}}'); \
+		echo "  Created:          $$CREATED"; \
+		echo "  Author:           $${AUTHOR:-<none>}"; \
+		echo "  Architecture:     $$ARCH"; \
+		echo "  OS:               $$OS"; \
+		echo "  Variant:          $${VARIANT:-<none>}"; \
+		echo "  Size:             $$SIZE_BYTES bytes ($${SIZE_MB}MB)"; \
+		echo "  Virtual Size:     $$VIRTUAL_SIZE bytes"; \
+		echo "  Parent:           $${PARENT:-<none>}"; \
+		echo "  Docker Version:   $${DOCKER_VERSION:-<none>}"; \
+		echo ""; \
+		echo "$(BLUE)Labels:$(RESET)"; \
+		docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{range $$k, $$v := .Config.Labels}}  {{$$k}}: {{$$v}}{{println}}{{end}}' | \
+			sed 's/^$$/  <none>/' | head -20; \
+		echo ""; \
+		echo "$(BLUE)Config:$(RESET)"; \
+		ENTRYPOINT=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Config.Entrypoint}}'); \
+		CMD=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Config.Cmd}}'); \
+		WORKINGDIR=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Config.WorkingDir}}'); \
+		USER=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{.Config.User}}'); \
+		echo "  Entrypoint:       $${ENTRYPOINT:-<none>}"; \
+		echo "  Cmd:              $${CMD:-<none>}"; \
+		echo "  WorkingDir:       $${WORKINGDIR:-<none>}"; \
+		echo "  User:             $${USER:-<none>}"; \
+		echo ""; \
+		echo "$(BLUE)Layers (RootFS):$(RESET)"; \
+		docker image inspect $(IMAGE_NAME):$(VERSION) --format '{{range .RootFS.Layers}}  {{.}}{{println}}{{end}}'; \
+		echo ""; \
+		echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"; \
+	else \
+		echo "$(RED)✗ Image not found: $(IMAGE_NAME):$(VERSION)$(RESET)"; \
+		echo "$(YELLOW)  Run: make -f Makefile.static-apps build$(RESET)"; \
+		exit 1; \
+	fi
+	@echo ""
+
+size: ## Show detailed size information
+	@echo "$(CYAN)Size Information$(RESET)"
+	@echo "$(CYAN)────────────────────────────────────────────────────────────────$(RESET)"
+	@if docker image inspect $(IMAGE_NAME):$(VERSION) > /dev/null 2>&1; then \
+		SIZE_BYTES=$$(docker image inspect $(IMAGE_NAME):$(VERSION) --format='{{.Size}}'); \
+		SIZE_MB=$$((SIZE_BYTES / 1024 / 1024)); \
+		echo "  Artifact size: $${SIZE_MB}MB ($$SIZE_BYTES bytes)"; \
+		echo "  Expected range: $(EXPECTED_SIZE_MIN_MB)-$(EXPECTED_SIZE_MAX_MB)MB"; \
+		echo ""; \
+		echo "$(BLUE)Layer details:$(RESET)"; \
+		docker history $(IMAGE_NAME):$(VERSION) --human --no-trunc=false; \
+	else \
+		echo "$(YELLOW)⚠ Image not found$(RESET)"; \
+	fi
+
+list: ## List all artifact images
+	@echo "$(CYAN)Artifact Images$(RESET)"
+	@echo "$(CYAN)────────────────────────────────────────────────────────────────$(RESET)"
+	@docker images | grep -E "(REPOSITORY|$(IMAGE_NAME))" || echo "$(YELLOW)No artifact images found$(RESET)"
+
+config-show: ## Show current configuration
+	@echo "$(CYAN)Current Configuration$(RESET)"
+	@echo "$(CYAN)════════════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(BLUE)Project:$(RESET)"
+	@echo "  PROJECT_NAME         = $(PROJECT_NAME)"
+	@echo "  VERSION              = $(VERSION)"
+	@echo "  ARTIFACT_NAME        = $(ARTIFACT_NAME)"
+	@echo ""
+	@echo "$(BLUE)Images:$(RESET)"
+	@echo "  IMAGE_NAME           = $(IMAGE_NAME)"
+	@echo "  REGISTRY_IMAGE       = $(REGISTRY_IMAGE)"
+	@echo "  TEST_IMAGE_NAME      = $(TEST_IMAGE_NAME)"
+	@echo ""
+	@echo "$(BLUE)Files:$(RESET)"
+	@echo "  DOCKERFILE           = $(DOCKERFILE)"
+	@echo "  TEST_DOCKERFILE      = $(TEST_DOCKERFILE)"
+	@echo "  BUILD_SCRIPT         = $(BUILD_SCRIPT)"
+	@echo ""
+	@echo "$(BLUE)Build:$(RESET)"
+	@echo "  DOCKER_PLATFORM      = $(DOCKER_PLATFORM)"
+	@echo "  VITE_BACKEND_DOMAIN  = $(if $(VITE_BACKEND_API_DOMAIN),$(VITE_BACKEND_API_DOMAIN),(not set))"
+	@echo ""
+	@echo "$(BLUE)Registry:$(RESET)"
+	@echo "  DOCKER_REGISTRY      = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY),(not set))"
+	@echo "  DOCKER_USERNAME      = $(if $(DOCKER_USERNAME),$(DOCKER_USERNAME),(not set))"
+	@echo ""
+	@echo "$(BLUE)Directories:$(RESET)"
+	@echo "  EXTRACT_DIR          = $(EXTRACT_DIR)"
+	@echo "  TMP_VERIFY_DIR       = $(TMP_VERIFY_DIR)"
+	@echo ""
+	@echo "$(BLUE)Testing:$(RESET)"
+	@echo "  TEST_PORT            = $(TEST_PORT)"
+	@echo "  TEST_CONTAINER_NAME  = $(TEST_CONTAINER_NAME)"
+	@echo ""
+	@echo "$(BLUE)Expected Apps:$(RESET)"
+	@for app in $(EXPECTED_APPS); do echo "  - $$app"; done
+
+version: ## Show version information
+	@echo "$(CYAN)Version Information$(RESET)"
+	@echo "$(CYAN)────────────────────────────────────────────────────────────────$(RESET)"
+	@echo "  Project: $(PROJECT_NAME)"
+	@echo "  Version: $(VERSION)"
+	@echo "  Artifact: $(ARTIFACT_NAME)"
+	@echo ""
+	@echo "$(BLUE)Tool versions:$(RESET)"
+	@echo -n "  Docker: "; docker --version 2>/dev/null || echo "not installed"
+	@echo -n "  Node: "; node --version 2>/dev/null || echo "not installed"
+	@echo -n "  npm: "; npm --version 2>/dev/null || echo "not installed"

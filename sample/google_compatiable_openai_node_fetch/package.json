@@ -1,0 +1,36 @@
+{
+  "name": "google_compatiable_openai_node_fetch",
+  "version": "1.0.0",
+  "description": "Gemini OpenAI-compatible REST API client using undici",
+  "main": "ex-001.mjs",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node ex-001.mjs",
+    "ex-200": "node ex-200.mjs",
+    "ex-300": "node ex-300.mjs",
+    "ex-400": "node ex-400.mjs",
+    "ex-500": "node ex-500.mjs",
+    "ex-600": "node ex-600.mjs",
+    "ex-700": "node ex-700.mjs",
+    "ex-800": "node ex-800.mjs",
+    "ex-900": "node ex-900.mjs",
+    "ex-1000": "node ex-1000.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "gemini",
+    "openai",
+    "api",
+    "undici"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "liquidjs": "^10.24.0",
+    "undici": "^7.16.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

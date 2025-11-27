@@ -1,0 +1,311 @@
+# ==============================================================================
+# Sub-App Makefile - Manage Independent Sub-Apps
+# ==============================================================================
+# Usage: make -f subapp.Makefile <target> APP=hello
+# Each sub-app is an independent Poetry project that can run standalone
+# ==============================================================================
+
+.PHONY: help
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+
+# Colors for output
+RED     := \033[0;31m
+GREEN   := \033[0;32m
+YELLOW  := \033[0;33m
+CYAN    := \033[0;36m
+BLUE    := \033[0;34m
+PURPLE  := \033[0;35m
+WHITE   := \033[0;37m
+RESET   := \033[0m
+
+# Sub-app configuration
+APP ?=
+APP_DIR = app/$(APP)
+APP_PORT ?= 8080
+
+# Available sub-apps
+SUB_APPS := hello
+
+# Python/Pip Registry for build
+PYTHON_REGISTRY_URL ?= https://pypi.org/simple
+
+# ------------------------------------------------------------------------------
+# Help
+# ------------------------------------------------------------------------------
+
+help: ## Show this help message
+	@echo "$(CYAN)Sub-App Management$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Core Commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(BLUE)Quick Commands:$(RESET)"
+	@echo "  make -f subapp.Makefile list                     # List all sub-apps"
+	@echo "  make -f subapp.Makefile install APP=hello        # Install sub-app deps"
+	@echo "  make -f subapp.Makefile run APP=hello            # Run sub-app standalone"
+	@echo "  make -f subapp.Makefile test APP=hello           # Test sub-app"
+	@echo "  make -f subapp.Makefile build APP=hello          # Build sub-app Docker image"
+	@echo ""
+	@echo "$(BLUE)Available Sub-Apps:$(RESET)"
+	@echo "  $(SUB_APPS)"
+	@echo ""
+	@echo "$(PURPLE)Usage Example:$(RESET)"
+	@echo "  make -f subapp.Makefile run APP=hello PORT=8080"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Validation
+# ------------------------------------------------------------------------------
+
+check-app: ## Validate APP parameter
+	@if [ -z "$(APP)" ]; then \
+		echo "$(RED)✗ APP parameter required$(RESET)"; \
+		echo "$(YELLOW)Usage: make -f subapp.Makefile <target> APP=hello$(RESET)"; \
+		echo "$(YELLOW)Available apps: $(SUB_APPS)$(RESET)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(APP_DIR)" ]; then \
+		echo "$(RED)✗ Sub-app not found: $(APP_DIR)$(RESET)"; \
+		echo "$(YELLOW)Available apps: $(SUB_APPS)$(RESET)"; \
+		exit 1; \
+	fi
+
+# ------------------------------------------------------------------------------
+# Discovery
+# ------------------------------------------------------------------------------
+
+list: ## List all sub-apps
+	@echo "$(CYAN)Available Sub-Apps:$(RESET)"
+	@for app in $(SUB_APPS); do \
+		if [ -f "app/$$app/pyproject.toml" ]; then \
+			version=$$(cd app/$$app && poetry version -s 2>/dev/null || echo "unknown"); \
+			echo "  $(GREEN)$$app$(RESET) (v$$version)"; \
+			echo "    Path: app/$$app"; \
+			if [ -f "app/$$app/README.md" ]; then \
+				desc=$$(head -n 3 app/$$app/README.md | tail -n 1); \
+				echo "    Info: $$desc"; \
+			fi; \
+			echo ""; \
+		fi; \
+	done
+
+list-all: ## List all sub-apps with details
+	@echo "$(CYAN)Sub-Apps Detail:$(RESET)"
+	@for app in $(SUB_APPS); do \
+		if [ -f "app/$$app/pyproject.toml" ]; then \
+			echo "$(PURPLE)$$app:$(RESET)"; \
+			cd app/$$app && poetry show --tree --no-dev | head -10; \
+			echo ""; \
+		fi; \
+	done
+
+info: check-app ## Show sub-app information
+	@echo "$(CYAN)Sub-App Information: $(APP)$(RESET)"
+	@echo "  Path:    $(APP_DIR)"
+	@cd $(APP_DIR) && poetry version
+	@echo "  Python:  $$(cd $(APP_DIR) && poetry run python --version 2>/dev/null || echo 'Not installed')"
+	@echo ""
+
+# ------------------------------------------------------------------------------
+# Installation & Setup
+# ------------------------------------------------------------------------------
+
+install: check-app ## Install sub-app dependencies
+	@echo "$(CYAN)Installing dependencies for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry install --no-interaction --no-ansi
+	@echo "$(GREEN)✓ Dependencies installed for $(APP)$(RESET)"
+
+install-all: ## Install dependencies for all sub-apps
+	@echo "$(CYAN)Installing dependencies for all sub-apps...$(RESET)"
+	@for app in $(SUB_APPS); do \
+		echo "$(BLUE)Installing: $$app$(RESET)"; \
+		$(MAKE) -f subapp.Makefile install APP=$$app; \
+		echo ""; \
+	done
+	@echo "$(GREEN)✓ All sub-apps installed$(RESET)"
+
+lock: check-app ## Generate/update lock file for sub-app
+	@echo "$(CYAN)Generating lock file for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry lock --no-interaction
+	@echo "$(GREEN)✓ Lock file generated for $(APP)$(RESET)"
+
+lock-all: ## Generate/update lock files for all sub-apps
+	@for app in $(SUB_APPS); do \
+		echo "$(BLUE)Locking: $$app$(RESET)"; \
+		$(MAKE) -f subapp.Makefile lock APP=$$app; \
+	done
+
+update: check-app ## Update sub-app dependencies
+	@echo "$(CYAN)Updating dependencies for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry update --no-interaction
+	@echo "$(GREEN)✓ Dependencies updated for $(APP)$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Development
+# ------------------------------------------------------------------------------
+
+run: check-app ## Run sub-app standalone
+	@echo "$(CYAN)Running $(APP) standalone on port $(APP_PORT)...$(RESET)"
+	@echo "$(BLUE)Access at: http://localhost:$(APP_PORT)$(RESET)"
+	@echo "$(BLUE)Docs at:   http://localhost:$(APP_PORT)/docs$(RESET)"
+	@cd $(APP_DIR) && poetry run uvicorn app.main:app --host 0.0.0.0 --port $(APP_PORT) --reload
+
+run-prod: check-app ## Run sub-app in production mode (no reload)
+	@echo "$(CYAN)Running $(APP) in production mode...$(RESET)"
+	@cd $(APP_DIR) && poetry run uvicorn app.main:app --host 0.0.0.0 --port $(APP_PORT)
+
+shell: check-app ## Open poetry shell in sub-app
+	@echo "$(CYAN)Opening shell for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry shell
+
+# ------------------------------------------------------------------------------
+# Testing
+# ------------------------------------------------------------------------------
+
+test: check-app ## Run tests for sub-app
+	@echo "$(CYAN)Running tests for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry run pytest
+	@echo "$(GREEN)✓ Tests complete for $(APP)$(RESET)"
+
+test-verbose: check-app ## Run tests with verbose output
+	@echo "$(CYAN)Running tests for $(APP) (verbose)...$(RESET)"
+	@cd $(APP_DIR) && poetry run pytest -v
+
+test-coverage: check-app ## Run tests with coverage
+	@echo "$(CYAN)Running tests with coverage for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry run pytest --cov --cov-report=term --cov-report=html
+	@echo "$(GREEN)✓ Coverage report generated$(RESET)"
+
+test-all: ## Run tests for all sub-apps
+	@echo "$(CYAN)Running tests for all sub-apps...$(RESET)"
+	@for app in $(SUB_APPS); do \
+		echo "$(BLUE)Testing: $$app$(RESET)"; \
+		$(MAKE) -f subapp.Makefile test APP=$$app; \
+		echo ""; \
+	done
+	@echo "$(GREEN)✓ All tests complete$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Docker Operations
+# ------------------------------------------------------------------------------
+
+docker-build: check-app ## Build Docker image for sub-app
+	@echo "$(CYAN)Building Docker image for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && docker build -t $(APP)-app:latest .
+	@echo "$(GREEN)✓ Docker image built: $(APP)-app:latest$(RESET)"
+
+docker-run: check-app ## Run sub-app in Docker
+	@echo "$(CYAN)Running $(APP) in Docker...$(RESET)"
+	@docker run -d --name $(APP)-container -p $(APP_PORT):8080 $(APP)-app:latest
+	@echo "$(GREEN)✓ Container started$(RESET)"
+	@echo "$(BLUE)Access at: http://localhost:$(APP_PORT)$(RESET)"
+
+docker-stop: check-app ## Stop sub-app Docker container
+	@echo "$(CYAN)Stopping $(APP) container...$(RESET)"
+	@docker stop $(APP)-container 2>/dev/null || true
+	@docker rm $(APP)-container 2>/dev/null || true
+	@echo "$(GREEN)✓ Container stopped$(RESET)"
+
+docker-build-all: ## Build Docker images for all sub-apps
+	@for app in $(SUB_APPS); do \
+		echo "$(BLUE)Building: $$app$(RESET)"; \
+		$(MAKE) -f subapp.Makefile docker-build APP=$$app; \
+	done
+
+# ------------------------------------------------------------------------------
+# Linting & Formatting
+# ------------------------------------------------------------------------------
+
+lint: check-app ## Run linting for sub-app
+	@echo "$(CYAN)Running linting for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry run ruff check app/ tests/ || echo "$(YELLOW)Install ruff: poetry add --group dev ruff$(RESET)"
+
+format: check-app ## Format code for sub-app
+	@echo "$(CYAN)Formatting code for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry run ruff format app/ tests/ || echo "$(YELLOW)Install ruff: poetry add --group dev ruff$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Version Management
+# ------------------------------------------------------------------------------
+
+version: check-app ## Show sub-app version
+	@cd $(APP_DIR) && poetry version
+
+version-bump-patch: check-app ## Bump patch version
+	@echo "$(CYAN)Bumping patch version for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry version patch
+	@echo "$(GREEN)✓ Version bumped to: $$(cd $(APP_DIR) && poetry version -s)$(RESET)"
+
+version-bump-minor: check-app ## Bump minor version
+	@echo "$(CYAN)Bumping minor version for $(APP)...$(RESET)"
+	@cd $(APP_DIR) && poetry version minor
+	@echo "$(GREEN)✓ Version bumped to: $$(cd $(APP_DIR) && poetry version -s)$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Clean Operations
+# ------------------------------------------------------------------------------
+
+clean: check-app ## Clean build artifacts for sub-app
+	@echo "$(CYAN)Cleaning $(APP)...$(RESET)"
+	@cd $(APP_DIR) && rm -rf dist/ build/ *.egg-info .eggs/ __pycache__/
+	@cd $(APP_DIR) && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@cd $(APP_DIR) && find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@echo "$(GREEN)✓ Cleaned $(APP)$(RESET)"
+
+clean-all: ## Clean all sub-apps
+	@for app in $(SUB_APPS); do \
+		$(MAKE) -f subapp.Makefile clean APP=$$app; \
+	done
+
+# ------------------------------------------------------------------------------
+# CI Operations
+# ------------------------------------------------------------------------------
+
+ci: check-app ## Run CI for sub-app
+	@echo "$(CYAN)Running CI for $(APP)...$(RESET)"
+	@$(MAKE) -f subapp.Makefile lock APP=$(APP)
+	@$(MAKE) -f subapp.Makefile install APP=$(APP)
+	@$(MAKE) -f subapp.Makefile test APP=$(APP)
+	@echo "$(GREEN)✓ CI complete for $(APP)$(RESET)"
+
+ci-all: ## Run CI for all sub-apps
+	@echo "$(CYAN)Running CI for all sub-apps...$(RESET)"
+	@for app in $(SUB_APPS); do \
+		echo "$(BLUE)CI: $$app$(RESET)"; \
+		$(MAKE) -f subapp.Makefile ci APP=$$app; \
+		echo ""; \
+	done
+	@echo "$(GREEN)✓ CI complete for all sub-apps$(RESET)"
+
+# ------------------------------------------------------------------------------
+# Utility
+# ------------------------------------------------------------------------------
+
+status: check-app ## Show sub-app status
+	@echo "$(CYAN)Sub-App Status: $(APP)$(RESET)"
+	@echo ""
+	@echo "$(PURPLE)Location:$(RESET)"
+	@echo "  $(APP_DIR)"
+	@echo ""
+	@echo "$(PURPLE)Version:$(RESET)"
+	@cd $(APP_DIR) && poetry version || echo "  Not initialized"
+	@echo ""
+	@echo "$(PURPLE)Dependencies:$(RESET)"
+	@cd $(APP_DIR) && poetry show --tree --no-dev 2>/dev/null | head -10 || echo "  Not installed"
+	@echo ""
+
+status-all: ## Show status of all sub-apps
+	@for app in $(SUB_APPS); do \
+		$(MAKE) -f subapp.Makefile status APP=$$app; \
+		echo ""; \
+	done
+
+# ------------------------------------------------------------------------------
+# Default target
+# ------------------------------------------------------------------------------
+
+.DEFAULT_GOAL := help

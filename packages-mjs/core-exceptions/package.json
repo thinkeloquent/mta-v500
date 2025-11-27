@@ -1,0 +1,58 @@
+{
+  "name": "@internal/core-exceptions",
+  "version": "2.0.4",
+  "description": "Result<T,E> pattern and custom exception classes for consistent error handling",
+  "license": "MIT",
+  "author": "ThinkEloquent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosmarte/mta-multi-tenant-application.git",
+    "directory": "external/core-exceptions"
+  },
+  "homepage": "https://github.com/carlosmarte/mta-multi-tenant-application#readme",
+  "bugs": {
+    "url": "https://github.com/carlosmarte/mta-multi-tenant-application/issues"
+  },
+  "keywords": [
+    "exceptions",
+    "errors",
+    "result",
+    "functional",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.5.2",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

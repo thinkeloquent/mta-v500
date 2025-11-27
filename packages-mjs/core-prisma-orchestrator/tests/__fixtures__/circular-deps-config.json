@@ -1,0 +1,19 @@
+{
+  "apps": [
+    {
+      "name": "auth",
+      "schemaPath": "apps/auth/prisma/schema.prisma",
+      "outputName": "client-auth",
+      "enabled": true,
+      "dependencies": ["billing"]
+    },
+    {
+      "name": "billing",
+      "schemaPath": "apps/billing/prisma/schema.prisma",
+      "outputName": "client-billing",
+      "enabled": true,
+      "dependencies": ["auth"]
+    }
+  ],
+  "strategy": "orchestrated"
+}

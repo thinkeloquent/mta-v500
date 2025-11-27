@@ -1,0 +1,48 @@
+# Makefile.frontend-copy
+# Copies all frontend/dist folders to ./static/app/{app-name}/dist
+
+SHELL := /bin/bash
+STATIC_DIR := ./static/app
+
+# Find all frontend/dist directories in fastify-apps and fastapi-apps
+FASTIFY_DISTS := $(wildcard fastify-apps/*/frontend/dist)
+FASTAPI_DISTS := $(wildcard fastapi-apps/*/frontend/dist)
+ALL_DISTS := $(FASTIFY_DISTS) $(FASTAPI_DISTS)
+
+.PHONY: help copy clean list
+
+help:
+	@echo "Makefile.frontend-copy - Copy frontend dist folders to static directory"
+	@echo ""
+	@echo "Usage: make -f Makefile.frontend-copy [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  help   Show this help message (default)"
+	@echo "  copy   Copy all frontend/dist to $(STATIC_DIR)/{app-name}/dist"
+	@echo "  list   Preview what will be copied"
+	@echo "  clean  Remove $(STATIC_DIR)"
+
+copy:
+	@mkdir -p $(STATIC_DIR)
+	@for dist in $(ALL_DISTS); do \
+		app_dir=$$(dirname $$(dirname $$dist)); \
+		app_name=$$(basename $$app_dir); \
+		clean_name=$${app_name#app-}; \
+		dest=$(STATIC_DIR)/$$clean_name/dist; \
+		echo "Copying $$dist → $$dest"; \
+		mkdir -p $$(dirname $$dest); \
+		cp -rf $$dist $$dest; \
+	done
+	@echo "Done. Copied $$(echo $(ALL_DISTS) | wc -w | tr -d ' ') frontend(s)"
+
+clean:
+	rm -rf $(STATIC_DIR)
+
+list:
+	@echo "Frontend dist directories found:"
+	@for dist in $(ALL_DISTS); do \
+		app_dir=$$(dirname $$(dirname $$dist)); \
+		app_name=$$(basename $$app_dir); \
+		clean_name=$${app_name#app-}; \
+		echo "  $$dist → $(STATIC_DIR)/$$clean_name/dist"; \
+	done

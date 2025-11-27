@@ -1,0 +1,37 @@
+{
+  "name": "@internal/app_google_gemini_openai_chat_completions_fastify-frontend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "fastify-apps/app_google_gemini_openai_chat_completions/frontend/src",
+  "projectType": "application",
+  "tags": [
+    "type:frontend",
+    "scope:fastify"
+  ],
+  "targets": {
+    "lint": {},
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "npm run build",
+        "cwd": "fastify-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "fastify-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run preview",
+        "cwd": "fastify-apps/app_google_gemini_openai_chat_completions/frontend"
+      }
+    }
+  }
+}

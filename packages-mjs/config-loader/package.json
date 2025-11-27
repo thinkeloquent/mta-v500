@@ -1,0 +1,24 @@
+{
+  "name": "@internal/config-loader",
+  "version": "1.0.0",
+  "description": "Load configuration from ./common folder",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --tsconfig tsconfig.json --watch"
+  },
+  "keywords": [
+    "mta",
+    "config",
+    "common"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.19.25",
+    "tsup": "^8.0.0",
+    "typescript": "^5.9.0"
+  }
+}

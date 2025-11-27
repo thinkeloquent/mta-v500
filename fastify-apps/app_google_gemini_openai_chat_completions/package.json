@@ -1,0 +1,32 @@
+{
+  "name": "@internal/app_google_gemini_openai_chat_completions_fastify",
+  "version": "1.0.0",
+  "description": "Google Gemini Openai Chat Completions - Fastify application",
+  "type": "module",
+  "private": true,
+  "main": "src/index.mjs",
+  "scripts": {
+    "app:dev": "node --watch server.test.mjs",
+    "app:start": "node server.test.mjs",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.0.2",
+    "@internal/fetch-proxy-dispatcher": "workspace:*",
+    "@internal/google-gemini-openai-client": "workspace:*",
+    "@internal/skeleton": "workspace:*",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.0",
+    "fastify-plugin": "^5.0.0",
+    "mime-types": "^2.1.35"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.0.0"
+  },
+  "keywords": [
+    "fastify",
+    "google-gemini-openai-chat-completions"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}
