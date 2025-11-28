@@ -19,7 +19,7 @@ class Settings {
     this.POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost";
     this.POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432", 10);
     this.POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres";
-    this.POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD ?? "";
+    this.POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD ?? void 0;
     this.POSTGRES_DB = process.env.POSTGRES_DB ?? "app";
     this.POSTGRES_SCHEMA = process.env.POSTGRES_SCHEMA ?? "public";
 
@@ -55,9 +55,13 @@ class Settings {
     // ==========================================================================
     // AI Provider Configuration
     // ==========================================================================
-    this.AI_DEFAULT_MODEL = process.env.AI_DEFAULT_MODEL ?? "gemini-2.0-flash-lite";
-    this.OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-    this.GOOGLE_BASE_URL = process.env.GOOGLE_BASE_URL ?? "https://generativelanguage.googleapis.com/v1beta/openai";
+    this.AI_DEFAULT_MODEL =
+      process.env.AI_DEFAULT_MODEL ?? "gemini-2.0-flash-lite";
+    this.OPENAI_BASE_URL =
+      process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+    this.GOOGLE_BASE_URL =
+      process.env.GOOGLE_BASE_URL ??
+      "https://generativelanguage.googleapis.com/v1beta/openai";
   }
 
   // ==========================================================================
