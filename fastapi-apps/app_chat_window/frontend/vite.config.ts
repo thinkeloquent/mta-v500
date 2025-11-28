@@ -23,9 +23,7 @@ export default defineConfig(({ mode }) => {
     },
     // Expose specific env variables to the client
     define: {
-      'import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL': JSON.stringify(
-        process.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL || 'http://localhost:3000',
-      ),
+      'import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL': JSON.stringify(''),
       'import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_AI_MODEL': JSON.stringify(
         process.env.VITE_APP_CHAT_WINDOW_CONFIG_AI_MODEL || process.env.APP_AI_INIT_CONFIG_DEFAULT_CHAT_MODEL || 'gpt-4o',
       ),

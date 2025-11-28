@@ -4,8 +4,8 @@
  * This module provides functions to interact with the FastAPI backend.
  */
 
-// Base URL for API requests
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Base URL for API requests - uses host-relative path
+const API_BASE = '';
 
 /**
  * Health check response from the API

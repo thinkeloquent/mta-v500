@@ -60,10 +60,7 @@ function App() {
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
               <strong>Error:</strong> {error}
               <p className="text-sm mt-2">
-                Make sure your FastAPI backend is running at{' '}
-                <code className="bg-red-100 px-1 rounded">
-                  {import.meta.env.VITE_API_URL || 'http://localhost:8080'}
-                </code>
+                Make sure your FastAPI backend is running.
               </p>
             </div>
           )}
@@ -93,18 +90,7 @@ function App() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Getting Started</h2>
           <div className="space-y-4 text-sm text-gray-600">
             <div>
-              <h3 className="font-medium text-gray-900">1. Configure your API</h3>
-              <p>
-                Edit <code className="bg-gray-100 px-1 rounded">.env</code> to set your
-                backend URL:
-              </p>
-              <pre className="mt-2 p-3 bg-gray-50 rounded-lg overflow-x-auto">
-                VITE_API_URL=http://localhost:8080
-              </pre>
-            </div>
-
-            <div>
-              <h3 className="font-medium text-gray-900">2. Add your components</h3>
+              <h3 className="font-medium text-gray-900">1. Add your components</h3>
               <p>
                 Create components in{' '}
                 <code className="bg-gray-100 px-1 rounded">src/components/</code>
@@ -112,7 +98,7 @@ function App() {
             </div>
 
             <div>
-              <h3 className="font-medium text-gray-900">3. Add API calls</h3>
+              <h3 className="font-medium text-gray-900">2. Add API calls</h3>
               <p>
                 Add your API functions to{' '}
                 <code className="bg-gray-100 px-1 rounded">src/api.ts</code>

@@ -6,8 +6,8 @@ export type Message = {
   content: string;
 };
 
-// Get environment configuration
-const SERVER_API_URL = import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL || 'http://localhost:3000';
+// Get environment configuration - uses host-relative path
+const SERVER_API_URL = import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL || '';
 const AI_MODEL = import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_AI_MODEL || 'gpt-4o';
 
 // Initialize provider

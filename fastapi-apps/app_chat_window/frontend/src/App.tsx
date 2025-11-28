@@ -11,8 +11,8 @@ import {
   saveSessions,
 } from './utils/sessionUtils';
 
-// Get environment configuration for CORS check
-const SERVER_API_URL = import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL || 'http://localhost:3000';
+// Get environment configuration for CORS check - uses host-relative path
+const SERVER_API_URL = import.meta.env.VITE_APP_CHAT_WINDOW_CONFIG_SERVER_API_URL || '';
 
 type ChatVariant = 'default' | 'compact';
 

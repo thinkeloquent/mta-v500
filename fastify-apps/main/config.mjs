@@ -19,7 +19,7 @@ class Settings {
     this.POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost";
     this.POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432", 10);
     this.POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres";
-    this.POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD ?? void 0;
+    this.POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD;
     this.POSTGRES_DB = process.env.POSTGRES_DB ?? "app";
     this.POSTGRES_SCHEMA = process.env.POSTGRES_SCHEMA ?? "public";
 
@@ -29,7 +29,7 @@ class Settings {
     this.REDIS_HOST = process.env.REDIS_HOST ?? "localhost";
     this.REDIS_PORT = parseInt(process.env.REDIS_PORT ?? "6379", 10);
     this.REDIS_USERNAME = process.env.REDIS_USERNAME ?? null;
-    this.REDIS_PASSWORD = process.env.REDIS_PASSWORD ?? null;
+    this.REDIS_PASSWORD = process.env.REDIS_PASSWORD;
     this.REDIS_DB = parseInt(process.env.REDIS_DB ?? "0", 10);
 
     // ==========================================================================
