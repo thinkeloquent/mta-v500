@@ -215,4 +215,4 @@ ENV PYTHONPATH="/app/fastapi-apps/app:${PYTHONPATH}"
 # Run with hot-reload enabled for development
 # For production, remove --reload flag
 # Note: Uses fastapi-apps.app.main:app for the full module path from project root
-CMD ["uvicorn", "fastapi-apps.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "fastapi-apps.server.server:app", "--host", "0.0.0.0", "--port", "8080"]

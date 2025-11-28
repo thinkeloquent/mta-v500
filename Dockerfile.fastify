@@ -80,4 +80,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Start server
 # Note: This will fail if no fastify apps exist - that's expected
-CMD ["node", "fastify-apps/main/server.mjs"]
+CMD ["node", "fastify-apps/server/server.mjs"]
