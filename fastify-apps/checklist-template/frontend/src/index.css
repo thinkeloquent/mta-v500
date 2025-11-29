@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom colors - Simplified Light Theme */
+  --color-surface-950: #ffffff;
+  --color-surface-900: #fafafa;
+  --color-surface-800: #f5f5f5;
+  --color-surface-700: #e5e5e5;
+
+  --color-accent: #6366f1;
+  --color-accent-foreground: #ffffff;
+
+  --color-success: #22c55e;
+  --color-success-foreground: #ffffff;
+
+  /* Custom font family */
+  --font-family-sans: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Simplified shadows */
+  --shadow-glow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #171717;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
