@@ -684,10 +684,19 @@ def register_health_routes(app: FastAPI, mounted_apps: Dict[str, FastAPI] = None
         summary="Get orchestrator information",
     )
     async def root():
-        build_id = os.environ.get("BUILD_ID", "")
+        build_id = os.environ.get("BUILD_ID", "0.0.0")
         build_parts = build_id.split("//") if build_id else []
-        return {"message": "Multi-App Orchestrator", "id": build_id, "build": build_parts}
-
+        return {
+            "status": "ok",
+            "message": "Multi-App Orchestrator",
+            "BUILD_COMMIT": os.environ.get("BUILD_COMMIT", ""),
+            "BUILD_DATE": os.environ.get("BUILD_DATE", ""),
+            "BUILD_ID": os.environ.get("BUILD_ID", "0.0.0"),
+            "BUILD_VERSION": os.environ.get("BUILD_VERSION", ""),
+            "id": build_id,
+            "build": build_parts
+        }
+    
     @app.get(
         "/~/sys/metadata/apps",
         response_model=AppsMetadataResponse,

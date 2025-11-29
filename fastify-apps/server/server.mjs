@@ -5,6 +5,24 @@
  * Model configuration is handled here via getModelForRequest.
  */
 
+// =============================================================================
+// Secret Loading (must be at top before other imports that use env vars)
+// =============================================================================
+import { existsSync } from 'node:fs';
+
+// Load secrets from ENV_SECRET_FILE if it exists
+if (process.env.ENV_SECRET_FILE && existsSync(process.env.ENV_SECRET_FILE)) {
+  const dotenv = await import('dotenv');
+  dotenv.config({ path: process.env.ENV_SECRET_FILE });
+}
+
+// Hydrate vault secrets
+import { createVaultSecretParser } from '@internal/vault-secret-hydrator';
+
+const vaultParser = createVaultSecretParser();
+
+// =============================================================================
+
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { bootstrap } from './index.mjs';
 

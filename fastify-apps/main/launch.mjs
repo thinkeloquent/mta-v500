@@ -322,7 +322,8 @@ export function getDefaultApps(appOptions = {}) {
       },
       metadata: {
         version: "1.0.0",
-        description: "Google Gemini chat completion service via OpenAI-compatible API",
+        description:
+          "Google Gemini chat completion service via OpenAI-compatible API",
         tags: ["ai-provider", "gemini", "chat"],
         dependencies: [],
       },
@@ -362,11 +363,25 @@ export async function loadExternalApps(fastify, config, databaseUrl) {
  */
 export function registerHealthRoutes(fastify) {
   fastify.get("/", async () => {
-    return { status: "ok", timestamp: new Date().toISOString() };
+    return {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      BUILD_COMMIT: process.env.BUILD_COMMIT || "N/A",
+      BUILD_DATE: process.env.BUILD_DATE || "N/A",
+      BUILD_ID: process.env.BUILD_ID || "N/A",
+      BUILD_VERSION: process.env.BUILD_VERSION || "N/A",
+    };
   });
 
   fastify.get("/health", async () => {
-    return { status: "ok", timestamp: new Date().toISOString() };
+    return {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      BUILD_COMMIT: process.env.BUILD_COMMIT || "N/A",
+      BUILD_DATE: process.env.BUILD_DATE || "N/A",
+      BUILD_ID: process.env.BUILD_ID || "N/A",
+      BUILD_VERSION: process.env.BUILD_VERSION || "N/A",
+    };
   });
 }
 

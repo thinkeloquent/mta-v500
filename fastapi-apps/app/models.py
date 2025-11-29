@@ -15,7 +15,12 @@ from pydantic import BaseModel, Field
 
 class RootResponse(BaseModel):
     """Response model for the root endpoint."""
+    status: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
     message: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
+    BUILD_COMMIT: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
+    BUILD_DATE: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
+    BUILD_ID: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
+    BUILD_VERSION: str = Field(..., description="Welcome message", example="Multi-App Orchestrator")
     id: str = Field(..., description="Build ID from environment variable", example="v1.0.0//prod//2024-01-01")
     build: List[str] = Field(..., description="Build ID parts split by '//'", example=["v1.0.0", "prod", "2024-01-01"])
 
