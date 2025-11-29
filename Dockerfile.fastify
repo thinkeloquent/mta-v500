@@ -62,6 +62,9 @@ ARG BUILD_ID="v.0.0.1"
 ENV BUILD_ID=${BUILD_ID}
 ENV ENV_SECRET_FILE=${ENV_SECRET_FILE}
 
+# Create logs directory for runtime logging
+RUN mkdir -p /applications/logs
+
 # Copy built artifacts from builder
 COPY --from=builder /static ./static
 COPY --from=builder /applications/fastify-apps ./fastify-apps

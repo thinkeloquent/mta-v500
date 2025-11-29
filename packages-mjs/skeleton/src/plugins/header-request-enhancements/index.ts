@@ -236,7 +236,12 @@ const headerRequestEnhancementsPlugin: FastifyPluginAsync<RequestEnhancementOpti
         exposedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
         maxAge: 3600,
-        origin: config.corsAllowLocalhost || config.corsUseOrigin ? true : config.corsAllowedOrigins,
+        origin:
+          config.corsAllowLocalhost || config.corsUseOrigin
+            ? true
+            : config.corsAllowedOrigins && config.corsAllowedOrigins.length > 0
+              ? config.corsAllowedOrigins
+              : true, // Default to allow-all when no specific origins configured
       };
 
       await fastify.register(fastifyCors, corsOptions);

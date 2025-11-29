@@ -1,6 +1,7 @@
 # Makefile.fastify - Node.js/Fastify development tasks
 # Implements CI targets: install, build, test, run, clean
 #> make -f ./Makefile.fastify dev
+#> make -f ./Makefile.fastify prod
 NODE := node
 PNPM := pnpm
 NX := pnpm nx
@@ -76,6 +77,13 @@ clean:
 # =============================================================================
 # Development Targets
 # =============================================================================
+
+prod: build
+	@echo "[Fastify] Starting main Fastify orchestrator with hot-reload..."
+	@echo "[Fastify] - Node.js --watch will restart on file changes"
+	@echo "[Fastify] - Port: $(PORT)"
+	@echo ""
+	$(NODE) ./fastify-apps/server/server.mjs
 
 dev:
 	@echo "[Fastify] Starting main Fastify orchestrator with hot-reload..."
